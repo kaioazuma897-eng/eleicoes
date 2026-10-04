@@ -639,8 +639,9 @@ select {
 
 /* ---------- mapa ---------- */
 
-/* Escala sequencial de uma cor (azul): claro = pouco apurado, escuro = tudo apurado.
-   No tema escuro a ordem se inverte, para o "pouco" se apagar contra o fundo. */
+/* Escala sequencial de uma cor (azul): quanto mais apurado, mais forte o azul.
+   No tema claro vai do azul-claro ao azul-escuro; no escuro, do azul apagado (quase
+   cinza) ao azul vivo. */
 :root {
   --m0: #cde2fb;
   --m1: #9ec5f4;
@@ -653,12 +654,12 @@ select {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --m0: #104281;
-    --m1: #1c5cab;
-    --m2: #2a78d6;
-    --m3: #5598e7;
-    --m4: #86b6ef;
-    --m5: #cde2fb;
+    --m0: #2a3445;
+    --m1: #26426d;
+    --m2: #225195;
+    --m3: #1f62be;
+    --m4: #2474e2;
+    --m5: #3d8cff;
     --m-vazio: #2e333d;
   }
 }
