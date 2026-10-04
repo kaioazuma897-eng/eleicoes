@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react'
+import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -34,9 +35,19 @@ function serviceWorker(): Plugin {
   }
 }
 
+function versao(): string {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim()
+  } catch {
+    return 'dev'
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   // Caminhos relativos: funciona em https://usuario.github.io/<repositório>/
   base: './',
+  // Versão no rodapé (commit do build), para saber se o aparelho está com a versão nova
+  define: { __VERSAO__: JSON.stringify(versao()) },
   plugins: [react(), serviceWorker()],
 })

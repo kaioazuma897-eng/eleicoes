@@ -182,6 +182,7 @@ export function useResultado(ajustes: Ajustes, eleicao: string | undefined, sel:
 /** % apurada de cada estado (arquivo de acompanhamento do TSE), atualizada a cada minuto. */
 export function useAndamento(ajustes: Ajustes, eleicao: string | undefined) {
   const [dados, setDados] = useState<{ atualizado: string; ufs: AndamentoUf[] } | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
     if (!eleicao) return
@@ -190,9 +191,12 @@ export function useAndamento(ajustes: Ajustes, eleicao: string | undefined) {
       if (document.hidden) return
       try {
         const raw = ajustes.modo === 'demo' ? andamentoDemo() : await buscarJson(urlAndamento(ajustes, eleicao))
-        if (vivo) setDados(lerAndamento(raw))
-      } catch {
+        if (!vivo) return
+        setDados(lerAndamento(raw))
+        setErro(null)
+      } catch (e) {
         // Sem o mapa o resto do app continua funcionando; tenta de novo no próximo ciclo
+        if (vivo) setErro(e instanceof Error ? e.message : String(e))
       }
     }
     void carregar()
@@ -205,5 +209,5 @@ export function useAndamento(ajustes: Ajustes, eleicao: string | undefined) {
     }
   }, [ajustes, eleicao])
 
-  return dados
+  return { dados, erro }
 }

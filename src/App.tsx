@@ -167,17 +167,22 @@ export default function App() {
             carregando={apuracao.carregando}
             onAtualizar={apuracao.atualizar}
           />
-          {!escolha.municipio && andamento && (
-            <Mapa
-              ufs={andamento.ufs}
-              atualizado={andamento.atualizado}
-              selecionada={escolha.uf}
-              onEscolher={(uf) =>
-                // Tocar de novo no estado escolhido volta para o Brasil (quando o cargo tem resultado nacional)
-                mudarLocal(uf === escolha.uf && cargo.nacional ? 'br' : uf)
-              }
-            />
-          )}
+          {!escolha.municipio &&
+            (andamento.dados ? (
+              <Mapa
+                ufs={andamento.dados.ufs}
+                atualizado={andamento.dados.atualizado}
+                selecionada={escolha.uf}
+                onEscolher={(uf) =>
+                  // Tocar de novo no estado escolhido volta para o Brasil (quando o cargo tem resultado nacional)
+                  mudarLocal(uf === escolha.uf && cargo.nacional ? 'br' : uf)
+                }
+              />
+            ) : (
+              <p className="vazio card pequeno">
+                {andamento.erro ? `Mapa por estado indisponível: ${andamento.erro}` : 'Carregando mapa por estado…'}
+              </p>
+            ))}
           <Candidatos
             candidatos={apuracao.resultado.candidatos}
             cargo={cargo}
@@ -192,7 +197,7 @@ export default function App() {
 
       <footer className="rodape pequeno">
         Dados: Tribunal Superior Eleitoral (resultados.tse.jus.br). App independente, sem vínculo com o TSE. O resultado
-        oficial é o divulgado pela Justiça Eleitoral.
+        oficial é o divulgado pela Justiça Eleitoral. Versão {__VERSAO__}.
       </footer>
     </div>
   )
