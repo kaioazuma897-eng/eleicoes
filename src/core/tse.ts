@@ -345,3 +345,36 @@ export function lerAndamento(raw: unknown): { atualizado: string; ufs: Andamento
   })
   return { atualizado: [str(raw.dg), str(raw.hg)].filter(Boolean).join(' '), ufs }
 }
+
+// ---------- regiões ----------
+
+export interface Regiao {
+  id: string
+  nome: string
+  ufs: string[]
+  /** Onde escrever o nome no mapa (coordenadas do SVG dos estados). */
+  rotulo: [number, number]
+}
+
+export const REGIOES: Regiao[] = [
+  { id: 'norte', nome: 'Norte', ufs: ['ac', 'am', 'ap', 'pa', 'ro', 'rr', 'to'], rotulo: [200, 150] },
+  { id: 'nordeste', nome: 'Nordeste', ufs: ['al', 'ba', 'ce', 'ma', 'pb', 'pe', 'pi', 'rn', 'se'], rotulo: [515, 235] },
+  { id: 'centro-oeste', nome: 'Centro-Oeste', ufs: ['df', 'go', 'ms', 'mt'], rotulo: [300, 330] },
+  { id: 'sudeste', nome: 'Sudeste', ufs: ['es', 'mg', 'rj', 'sp'], rotulo: [450, 410] },
+  { id: 'sul', nome: 'Sul', ufs: ['pr', 'rs', 'sc'], rotulo: [335, 560] },
+]
+
+export const regiaoDaUf = (uf: string) => REGIOES.find((r) => r.ufs.includes(uf))
+
+/**
+ * % apurada de cada região: soma as seções dos estados (não a média das %, que daria
+ * o mesmo peso a Roraima e a São Paulo).
+ */
+export function andamentoPorRegiao(ufs: AndamentoUf[]): (AndamentoUf & { nome: string })[] {
+  return REGIOES.map((r) => {
+    const dela = ufs.filter((u) => r.ufs.includes(u.uf))
+    const secoes = dela.reduce((t, u) => t + u.secoes, 0)
+    const secoesTotalizadas = dela.reduce((t, u) => t + u.secoesTotalizadas, 0)
+    return { uf: r.id, nome: r.nome, secoes, secoesTotalizadas, apurado: secoes ? (secoesTotalizadas / secoes) * 100 : 0 }
+  })
+}

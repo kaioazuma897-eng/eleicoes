@@ -212,3 +212,22 @@ describe('andamento por estado (arquivo real br-e006257-ab.json)', () => {
     )
   })
 })
+
+describe('regiões', () => {
+  it('cobrem os 27 estados, cada um uma vez', async () => {
+    const { REGIOES, UFS } = await import('./tse')
+    const todas = REGIOES.flatMap((r) => r.ufs).sort()
+    expect(todas).toEqual(UFS.map((u) => u.sigla).sort())
+  })
+
+  it('somam as seções em vez de tirar a média das %', async () => {
+    const { andamentoPorRegiao } = await import('./tse')
+    const sul = andamentoPorRegiao([
+      { uf: 'pr', apurado: 100, secoes: 100, secoesTotalizadas: 100 },
+      { uf: 'rs', apurado: 0, secoes: 300, secoesTotalizadas: 0 },
+      { uf: 'sc', apurado: 0, secoes: 0, secoesTotalizadas: 0 },
+    ]).find((r) => r.uf === 'sul')
+    expect(sul?.apurado).toBe(25)
+    expect(sul?.secoes).toBe(400)
+  })
+})

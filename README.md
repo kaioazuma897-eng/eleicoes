@@ -7,7 +7,8 @@ Brasil inteiro, por estado ou por município. Os dados vêm dos **arquivos públ
 - % de urnas apuradas, comparecimento, abstenção, brancos e nulos
 - candidatos com votos, %, partido/coligação, foto e situação (eleito, 2º turno, suplente…)
 - atualização automática a cada minuto (pausa com o app em segundo plano e para quando a totalização termina)
-- **mapa do Brasil** colorido pela % de urnas apuradas em cada estado (toque no estado para ver o resultado dele)
+- **mapa do Brasil** colorido pela % de urnas apuradas, por **estado** (toque no estado para ver o resultado dele) ou
+  por **região** (Norte, Nordeste, Centro-Oeste, Sudeste e Sul, somando as seções dos estados)
 - busca de município e de candidato (deputados)
 - 1º e 2º turno
 - **modo demonstração** com dados fictícios, para ver o app funcionando fora do dia da eleição
