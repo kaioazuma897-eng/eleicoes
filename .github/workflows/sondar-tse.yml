@@ -1,50 +1,60 @@
-# Diagnóstico: baixa os arquivos públicos do TSE e mostra cabeçalhos e uma amostra do conteúdo.
-# Serve para conferir o formato dos dados e se o TSE libera o acesso pelo navegador (CORS).
+# Diagnóstico: baixa os arquivos públicos do TSE e guarda na branch "sondagem-tse",
+# para conferir o formato dos dados de 2026. Não afeta o app publicado.
 name: Sondar TSE
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   sondar:
     runs-on: ubuntu-latest
     steps:
-      - name: Configuração das eleições
+      - name: Baixar arquivos
         run: |
+          set -u
           B=https://resultados.tse.jus.br/oficial
-          curl -sS -D - -H 'Origin: https://kaioazuma897-eng.github.io' "$B/comum/config/ele-c.json" -o ele-c.json | grep -iE '^(HTTP|access-control|content-type)'
-          python3 -c "import json;d=json.load(open('ele-c.json'));print(json.dumps(d,ensure_ascii=False)[:3000])"
-      - name: Resultados de amostra
-        run: |
-          B=https://resultados.tse.jus.br/oficial
-          python3 - <<'PY' > eleicoes.txt
+          mkdir -p tse && cd tse
+          get() { # url arquivo
+            code=$(curl -sS -o "$2" -w '%{http_code}' -H 'Origin: https://kaioazuma897-eng.github.io' "$1" || echo 000)
+            echo "$code $1" >> status.txt
+            [ "$code" = 200 ] || rm -f "$2"
+          }
+          get "$B/comum/config/ele-c.json" ele-c.json
+          python3 - <<'PY' > codigos.txt
           import json
           d = json.load(open('ele-c.json'))
-          codes = []
+          out = []
           def walk(n):
               if isinstance(n, dict):
-                  for e in n.get('e', []) if isinstance(n.get('e'), list) else []:
-                      if isinstance(e, dict) and e.get('cd'): codes.append(e['cd'])
+                  if isinstance(n.get('e'), list):
+                      for e in n['e']:
+                          if isinstance(e, dict) and e.get('cd'): out.append(e['cd'])
                   for v in n.values(): walk(v)
               elif isinstance(n, list):
                   for v in n: walk(v)
           walk(d)
-          print(' '.join(dict.fromkeys(codes)))
+          print('\n'.join(dict.fromkeys(out)))
           PY
-          echo "Eleições: $(cat eleicoes.txt)"
-          for E in $(cat eleicoes.txt); do
+          for E in $(cat codigos.txt); do
             P=$(printf '%06d' "$E")
-            for URL in \
-              "$B/ele2026/$E/dados-simplificados/br/br-c0001-e$P-r.json" \
-              "$B/ele2026/$E/dados-simplificados/sp/sp-c0003-e$P-r.json" \
-              "$B/ele2026/$E/dados-simplificados/sp/sp-c0006-e$P-r.json" \
-              "$B/ele2026/$E/dados-simplificados/sp/sp71072-c0003-e$P-r.json" \
-              "$B/ele2026/$E/config/mun-e$P-cm.json"; do
-              echo "=== $URL"
-              curl -sS -D - -H 'Origin: https://kaioazuma897-eng.github.io' "$URL" -o out.json | grep -iE '^(HTTP|access-control|content-type)'
-              head -c 1500 out.json; echo
+            get "$B/ele2026/$E/config/mun-e$P-cm.json" "mun-$E.json"
+            for C in 0001 0003 0005 0006 0007; do
+              for L in br sp df; do
+                get "$B/ele2026/$E/dados-simplificados/$L/$L-c$C-e$P-r.json" "r-$E-$L-$C.json"
+              done
             done
+            get "$B/ele2026/$E/dados-simplificados/sp/sp71072-c0001-e$P-r.json" "r-$E-sp71072-0001.json"
           done
+          grep -c '^200' status.txt || true
+      - name: Guardar na branch sondagem-tse
+        run: |
+          cd tse
+          git init -q -b sondagem-tse
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add -A
+          git commit -qm "Sondagem dos arquivos do TSE"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" sondagem-tse
