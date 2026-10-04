@@ -27,6 +27,17 @@ jobs:
             echo "$code $C" | tee -a status.txt
             [ "$code" = 200 ] || rm -f "$F"
           done
+          # Páginas HTML: baixa também os scripts que elas carregam e extrai os modelos de endereço
+          for F in *; do
+            grep -qi '<script' "$F" 2>/dev/null || continue
+            BASE=https://resultados.tse.jus.br/oficial/$(dirname "$(echo "$F" | tr '_' '/')")
+            for S in $(grep -oE 'src="[^"]+\.js"' "$F" | sed -E 's/src="([^"]+)"/\1/'); do
+              case "$S" in http*) U=$S;; /*) U=https://resultados.tse.jus.br$S;; *) U=$BASE/$S;; esac
+              N=js_$(basename "$S")
+              curl -sS -o "$N" "$U" && echo "200 $U" >> status.txt
+              grep -oE '.{0,120}(json|dados-simplificados|fotos).{0,120}' "$N" >> modelos.txt || true
+            done
+          done
       - name: Guardar na branch sondagem-tse
         run: |
           cd tse
