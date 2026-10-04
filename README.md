@@ -7,6 +7,7 @@ Brasil inteiro, por estado ou por município. Os dados vêm dos **arquivos públ
 - % de urnas apuradas, comparecimento, abstenção, brancos e nulos
 - candidatos com votos, %, partido/coligação, foto e situação (eleito, 2º turno, suplente…)
 - atualização automática a cada minuto (pausa com o app em segundo plano e para quando a totalização termina)
+- **mapa do Brasil** colorido pela % de urnas apuradas em cada estado (toque no estado para ver o resultado dele)
 - busca de município e de candidato (deputados)
 - 1º e 2º turno
 - **modo demonstração** com dados fictícios, para ver o app funcionando fora do dia da eleição
@@ -29,6 +30,7 @@ build e publica no GitHub Pages. Ative em **Settings → Pages → Source: GitHu
 | `oficial/comum/config/ele-c.json` | descobre os códigos das eleições de cada turno |
 | `oficial/ele2026/<eleição>/config/mun-e<eleição>-cm.json` | lista de municípios |
 | `oficial/ele2026/<eleição>/dados/<uf>/<uf><município>-c<cargo>-e<eleição>-u.json` | resultado (arquivo “unificado”) |
+| `oficial/ele2026/<eleição>/dados/br/br-e<eleição>-ab.json` | % apurada de cada estado (mapa) |
 | `oficial/ele2026/<eleição>/fotos/<uf>/<sqcand>.jpeg` | foto do candidato |
 
 Nas eleições gerais o TSE usa um código para a eleição **federal** (presidente) e outro para a **estadual**
@@ -43,3 +45,6 @@ O workflow manual [`sondar-tse.yml`](.github/workflows/sondar-tse.yml) baixa arq
 `sondagem-tse`, útil para conferir mudanças de formato.
 
 > App independente, sem vínculo com o TSE. O resultado oficial é o divulgado pela Justiça Eleitoral.
+
+Mapa dos estados: [svg-maps/brazil](https://github.com/VictorCazanave/svg-maps/tree/master/packages/brazil), de Victor
+Cazanave, sob licença [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

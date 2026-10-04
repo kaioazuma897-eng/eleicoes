@@ -199,3 +199,16 @@ describe('arquivo real do TSE (ele-c.json de 02/10/2026)', () => {
     expect(montarTurnos(de2026)).toEqual([{ turno: 1, data: '04/10/2026', federal: '6257', estadual: '6259' }])
   })
 })
+
+describe('andamento por estado (arquivo real br-e006257-ab.json)', () => {
+  it('lê a % apurada de cada estado', async () => {
+    const { lerAndamento, urlAndamento } = await import('./tse')
+    const a = lerAndamento((await import('./fixtures/br-e006257-ab.json')).default)
+    expect(a.ufs).toHaveLength(29)
+    expect(a.ufs.find((u) => u.uf === 'sp')?.apurado).toBeCloseTo(45.86)
+    expect(a.ufs.find((u) => u.uf === 'zz')).toBeTruthy()
+    expect(urlAndamento(fonte, '6257')).toBe(
+      'https://resultados.tse.jus.br/oficial/ele2026/6257/dados/br/br-e006257-ab.json',
+    )
+  })
+})

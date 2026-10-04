@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { municipiosDemo, resultadoDemo } from '../core/demo'
+import { andamentoDemo, municipiosDemo, resultadoDemo } from '../core/demo'
 import {
+  lerAndamento,
   lerConfig,
   lerMunicipios,
   lerResultado,
   montarTurnos,
   TSE_BASE,
+  urlAndamento,
   urlConfig,
   urlMunicipios,
   urlResultado,
+  type AndamentoUf,
   type Cargo,
   type Municipio,
   type Resultado,
@@ -174,4 +177,33 @@ export function useResultado(ajustes: Ajustes, eleicao: string | undefined, sel:
   }, [])
 
   return { resultado, erro, carregando, proxima, atualizar: () => void carregar() }
+}
+
+/** % apurada de cada estado (arquivo de acompanhamento do TSE), atualizada a cada minuto. */
+export function useAndamento(ajustes: Ajustes, eleicao: string | undefined) {
+  const [dados, setDados] = useState<{ atualizado: string; ufs: AndamentoUf[] } | null>(null)
+
+  useEffect(() => {
+    if (!eleicao) return
+    let vivo = true
+    const carregar = async () => {
+      if (document.hidden) return
+      try {
+        const raw = ajustes.modo === 'demo' ? andamentoDemo() : await buscarJson(urlAndamento(ajustes, eleicao))
+        if (vivo) setDados(lerAndamento(raw))
+      } catch {
+        // Sem o mapa o resto do app continua funcionando; tenta de novo no próximo ciclo
+      }
+    }
+    void carregar()
+    const t = setInterval(carregar, INTERVALO_S * 1000)
+    document.addEventListener('visibilitychange', carregar)
+    return () => {
+      vivo = false
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', carregar)
+    }
+  }, [ajustes, eleicao])
+
+  return dados
 }

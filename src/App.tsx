@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { AjustesPainel } from './components/AjustesPainel'
 import { Candidatos } from './components/Candidatos'
 import { Local } from './components/Local'
+import { Mapa } from './components/Mapa'
 import { Placar } from './components/Placar'
 import { CARGOS, cargoExiste, cargoPorId, UFS, urlFoto, type CargoId, type Turno } from './core/tse'
 import { gravar, ler } from './lib/storage'
-import { AJUSTES_PADRAO, useMunicipios, useResultado, useTurnos, type Ajustes } from './lib/useApuracao'
+import { AJUSTES_PADRAO, useAndamento, useMunicipios, useResultado, useTurnos, type Ajustes } from './lib/useApuracao'
 
 interface Escolha {
   turno: number
@@ -33,6 +34,7 @@ export default function App() {
   const eleicao = turno ? (cargo.esfera === 'federal' ? turno.federal : turno.estadual) : undefined
 
   const municipios = useMunicipios(ajustes, turno?.federal)
+  const andamento = useAndamento(ajustes, eleicao)
   const apuracao = useResultado(ajustes, eleicao, {
     turno: turno?.turno ?? 1,
     cargo,
@@ -165,6 +167,17 @@ export default function App() {
             carregando={apuracao.carregando}
             onAtualizar={apuracao.atualizar}
           />
+          {!escolha.municipio && andamento && (
+            <Mapa
+              ufs={andamento.ufs}
+              atualizado={andamento.atualizado}
+              selecionada={escolha.uf}
+              onEscolher={(uf) =>
+                // Tocar de novo no estado escolhido volta para o Brasil (quando o cargo tem resultado nacional)
+                mudarLocal(uf === escolha.uf && cargo.nacional ? 'br' : uf)
+              }
+            />
+          )}
           <Candidatos
             candidatos={apuracao.resultado.candidatos}
             cargo={cargo}

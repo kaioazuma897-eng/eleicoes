@@ -636,3 +636,168 @@ select {
   text-align: center;
   margin-top: 4px;
 }
+
+/* ---------- mapa ---------- */
+
+/* Escala sequencial de uma cor (azul): claro = pouco apurado, escuro = tudo apurado.
+   No tema escuro a ordem se inverte, para o "pouco" se apagar contra o fundo. */
+:root {
+  --m0: #cde2fb;
+  --m1: #9ec5f4;
+  --m2: #6da7ec;
+  --m3: #3987e5;
+  --m4: #256abf;
+  --m5: #0d366b;
+  --m-vazio: #e3e6eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --m0: #104281;
+    --m1: #1c5cab;
+    --m2: #2a78d6;
+    --m3: #5598e7;
+    --m4: #86b6ef;
+    --m5: #cde2fb;
+    --m-vazio: #2e333d;
+  }
+}
+
+.mapa {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mapa-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mapa-topo h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.mapa-info {
+  min-height: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mapa-svg {
+  width: 100%;
+  max-width: 440px;
+  align-self: center;
+  height: auto;
+  overflow: visible;
+}
+
+.uf {
+  fill: var(--m-vazio);
+  /* Espaço entre estados na cor da superfície do cartão */
+  stroke: var(--surface);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  cursor: pointer;
+  transition: fill 0.6s ease;
+  outline: none;
+}
+
+.uf.f0 { fill: var(--m0); }
+.uf.f1 { fill: var(--m1); }
+.uf.f2 { fill: var(--m2); }
+.uf.f3 { fill: var(--m3); }
+.uf.f4 { fill: var(--m4); }
+.uf.f5 { fill: var(--m5); }
+
+.uf:hover,
+.uf:focus-visible {
+  opacity: 0.8;
+}
+
+.uf-halo {
+  fill: none;
+  stroke: var(--surface);
+  stroke-width: 6;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.uf-contorno {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--ink-2);
+  justify-content: center;
+}
+
+.legenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.amostra {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.amostra.f0 { background: var(--m0); }
+.amostra.f1 { background: var(--m1); }
+.amostra.f2 { background: var(--m2); }
+.amostra.f3 { background: var(--m3); }
+.amostra.f4 { background: var(--m4); }
+.amostra.f5 { background: var(--m5); }
+
+.mapa-exterior {
+  text-align: center;
+  margin: 0;
+}
+
+.mapa-lista summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.mapa-lista table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mapa-lista th,
+.mapa-lista td {
+  text-align: left;
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mapa-lista th:not(:first-child),
+.mapa-lista td:not(:first-child) {
+  text-align: right;
+}
+
+.credito {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-3);
+  text-align: right;
+}

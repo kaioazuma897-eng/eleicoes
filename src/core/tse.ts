@@ -322,3 +322,26 @@ export function montarTurnos(eleicoes: Eleicao[]): Turno[] {
   }
   return turnos.sort((a, b) => a.turno - b.turno)
 }
+
+// ---------- andamento por estado ----------
+
+export interface AndamentoUf {
+  /** Sigla em minúsculas; "zz" = exterior, "br" = Brasil. */
+  uf: string
+  apurado: number
+  secoes: number
+  secoesTotalizadas: number
+}
+
+/** Arquivo de acompanhamento: % de urnas apuradas de cada estado, num arquivo só. */
+export const urlAndamento = (f: Fonte, eleicao: string) =>
+  `${f.base}/${f.ciclo}/${eleicao}/dados/br/br-e${pad(eleicao, 6)}-ab.json`
+
+export function lerAndamento(raw: unknown): { atualizado: string; ufs: AndamentoUf[] } {
+  if (!isObj(raw) || !Array.isArray(raw.abr)) throw new Error('Arquivo de acompanhamento em formato inesperado.')
+  const ufs = raw.abr.filter(isObj).map((a) => {
+    const s = isObj(a.s) ? a.s : {}
+    return { uf: str(a.cdabr).toLowerCase(), apurado: num(s.pst), secoes: num(s.ts), secoesTotalizadas: num(s.st) }
+  })
+  return { atualizado: [str(raw.dg), str(raw.hg)].filter(Boolean).join(' '), ufs }
+}

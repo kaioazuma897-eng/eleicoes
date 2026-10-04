@@ -121,3 +121,14 @@ export function municipiosDemo(): Municipio[] {
     })),
   )
 }
+
+/** Andamento fictício por estado: cada um num ritmo, todos chegando a 100%. */
+export function andamentoDemo(agora = Date.now()): unknown {
+  const geral = progressoDemo(agora)
+  const abr = [...UFS.map((u) => u.sigla), 'zz', 'br'].map((uf) => {
+    const ritmo = 0.6 + prng(`ritmo|${uf}`)() * 0.9
+    const pst = uf === 'br' || geral >= 100 ? geral : Math.min(100, geral * ritmo)
+    return { cdabr: uf, tpabr: uf === 'br' ? 'br' : 'uf', s: { ts: '1000', st: String(Math.round(pst * 10)), pst: fmt(pst) } }
+  })
+  return { dg: new Date(agora).toLocaleDateString('pt-BR'), hg: new Date(agora).toLocaleTimeString('pt-BR'), abr }
+}
