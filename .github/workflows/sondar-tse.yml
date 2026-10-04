@@ -1,0 +1,50 @@
+# Diagnóstico: baixa os arquivos públicos do TSE e mostra cabeçalhos e uma amostra do conteúdo.
+# Serve para conferir o formato dos dados e se o TSE libera o acesso pelo navegador (CORS).
+name: Sondar TSE
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configuração das eleições
+        run: |
+          B=https://resultados.tse.jus.br/oficial
+          curl -sS -D - -H 'Origin: https://kaioazuma897-eng.github.io' "$B/comum/config/ele-c.json" -o ele-c.json | grep -iE '^(HTTP|access-control|content-type)'
+          python3 -c "import json;d=json.load(open('ele-c.json'));print(json.dumps(d,ensure_ascii=False)[:3000])"
+      - name: Resultados de amostra
+        run: |
+          B=https://resultados.tse.jus.br/oficial
+          python3 - <<'PY' > eleicoes.txt
+          import json
+          d = json.load(open('ele-c.json'))
+          codes = []
+          def walk(n):
+              if isinstance(n, dict):
+                  for e in n.get('e', []) if isinstance(n.get('e'), list) else []:
+                      if isinstance(e, dict) and e.get('cd'): codes.append(e['cd'])
+                  for v in n.values(): walk(v)
+              elif isinstance(n, list):
+                  for v in n: walk(v)
+          walk(d)
+          print(' '.join(dict.fromkeys(codes)))
+          PY
+          echo "Eleições: $(cat eleicoes.txt)"
+          for E in $(cat eleicoes.txt); do
+            P=$(printf '%06d' "$E")
+            for URL in \
+              "$B/ele2026/$E/dados-simplificados/br/br-c0001-e$P-r.json" \
+              "$B/ele2026/$E/dados-simplificados/sp/sp-c0003-e$P-r.json" \
+              "$B/ele2026/$E/dados-simplificados/sp/sp-c0006-e$P-r.json" \
+              "$B/ele2026/$E/dados-simplificados/sp/sp71072-c0003-e$P-r.json" \
+              "$B/ele2026/$E/config/mun-e$P-cm.json"; do
+              echo "=== $URL"
+              curl -sS -D - -H 'Origin: https://kaioazuma897-eng.github.io' "$URL" -o out.json | grep -iE '^(HTTP|access-control|content-type)'
+              head -c 1500 out.json; echo
+            done
+          done
