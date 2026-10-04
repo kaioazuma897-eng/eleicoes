@@ -852,3 +852,126 @@ select {
   stroke-linejoin: round;
   pointer-events: none;
 }
+
+/* ---------- vagas e quem está se elegendo ---------- */
+
+.vagas {
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vagas p {
+  margin: 0;
+}
+
+.vagas-topo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vagas-num {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.vagas-status {
+  display: flex;
+  flex-direction: column;
+}
+
+.vagas-status strong {
+  color: var(--accent);
+}
+
+.grupos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.grupo {
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.grupo strong {
+  color: var(--ink);
+  margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.filtros .busca {
+  margin-bottom: 0;
+}
+
+.interruptor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.interruptor input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+/* Quem está se elegendo: borda e faixa lateral na cor de destaque */
+.candidato.elegendo {
+  border-color: var(--accent);
+  box-shadow: inset 4px 0 0 var(--accent), var(--shadow);
+}
+
+.candidato.segundoTurno {
+  border-color: var(--warn-ink);
+  box-shadow: inset 4px 0 0 var(--warn-ink), var(--shadow);
+}
+
+.candidato.eleito {
+  box-shadow: inset 4px 0 0 var(--ok), var(--shadow);
+}
+
+/* Com a projeção na tela, as barras de quem não está entrando ficam neutras */
+.com-projecao .candidato:not(.elegendo):not(.eleito):not(.segundoTurno) .barra-cand > div {
+  background: var(--ink-3);
+}
+
+.segundoTurno .barra-cand > div {
+  background: var(--warn-ink);
+}
+
+.selo-elegendo {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.selo-segundoTurno {
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+}
+
+.selo-eleito {
+  background: var(--ok-soft);
+  color: var(--ok);
+}

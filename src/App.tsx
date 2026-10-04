@@ -184,8 +184,11 @@ export default function App() {
               </p>
             ))}
           <Candidatos
-            candidatos={apuracao.resultado.candidatos}
+            resultado={apuracao.resultado}
             cargo={cargo}
+            turno={turno?.turno ?? 1}
+            // Presidente se decide no Brasil; os demais cargos, no estado inteiro (nunca num município)
+            decideAqui={cargo.nacional ? escolha.uf === 'br' : escolha.uf !== 'br' && !escolha.municipio}
             foto={(c) =>
               demo || !c.sq ? null : urlFoto(ajustes, eleicao, cargo.nacional ? 'br' : escolha.uf, c.sq)
             }

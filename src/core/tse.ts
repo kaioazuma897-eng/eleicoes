@@ -110,6 +110,15 @@ export interface Candidato {
   situacao: string
   /** Vice ou suplentes, quando informados. */
   vice: string
+  /** Partido isolado ou federação que disputa as vagas (cargos de deputado). */
+  grupo: string
+}
+
+/** Partido ou federação e quantas vagas leva pela contagem atual (cargos de deputado). */
+export interface Grupo {
+  id: string
+  nome: string
+  vagas: number
 }
 
 export interface Resultado {
@@ -131,6 +140,12 @@ export interface Resultado {
   atualizado: string
   /** O TSE marca quando a totalização chegou ao fim ("s"). */
   finalizado: boolean
+  /** Número de vagas em disputa (1 para presidente, 2 para senador em 2026, 70 deputados por SP…). */
+  vagas: number
+  /** Quociente eleitoral (cargos de deputado): votos válidos ÷ vagas. */
+  quociente: number
+  /** Vagas de cada partido/federação calculadas pelo TSE com a contagem atual. */
+  grupos: Grupo[]
   candidatos: Candidato[]
 }
 
@@ -142,9 +157,15 @@ const str = (v: unknown) => (typeof v === 'string' ? v : typeof v === 'number' ?
  * Junta todos os objetos de candidato do arquivo. No arquivo unificado eles ficam em
  * carg → agr (coligação ou partido isolado) → par (partido) → cand; guardamos de onde vieram.
  */
-function coletarCandidatos(node: unknown, ctx: { partido: string; coligacao: string }, out: Candidato[]) {
+interface Contexto {
+  partido: string
+  coligacao: string
+  grupo: string
+}
+
+function coletarCandidatos(node: unknown, ctx: Contexto, out: Candidato[], grupos: Grupo[]) {
   if (Array.isArray(node)) {
-    for (const item of node) coletarCandidatos(item, ctx, out)
+    for (const item of node) coletarCandidatos(item, ctx, out, grupos)
     return
   }
   if (!isObj(node)) return
@@ -162,16 +183,23 @@ function coletarCandidatos(node: unknown, ctx: { partido: string; coligacao: str
       eleito: str(node.e).toLowerCase() === 's' || /^eleit/i.test(situacao),
       situacao,
       vice: viceDe(node),
+      grupo: ctx.grupo,
     })
     return
+  }
+  // Um "agr" (agremiação) tem a lista de partidos: é quem disputa as vagas
+  const ehGrupo = Array.isArray(node.par)
+  if (ehGrupo && 'vag' in node) {
+    grupos.push({ id: str(node.n), nome: str(node.com) || str(node.nm), vagas: num(node.vag) })
   }
   const filho = {
     partido: str(node.sg) || ctx.partido,
     // tp "c" = coligação; "i" = partido isolado (aí o nome do grupo é o do próprio partido)
     coligacao: str(node.tp) === 'c' && str(node.nm) ? str(node.nm) : ctx.coligacao,
+    grupo: ehGrupo ? str(node.n) : ctx.grupo,
   }
   for (const v of Object.values(node)) {
-    if (Array.isArray(v) || isObj(v)) coletarCandidatos(v, filho, out)
+    if (Array.isArray(v) || isObj(v)) coletarCandidatos(v, filho, out, grupos)
   }
 }
 
@@ -192,7 +220,9 @@ export function lerResultado(raw: unknown): Resultado {
   const v = isObj(raw.v) ? raw.v : {}
 
   const candidatos: Candidato[] = []
-  coletarCandidatos(raw.cand ?? raw.carg ?? [], { partido: '', coligacao: '' }, candidatos)
+  const grupos: Grupo[] = []
+  coletarCandidatos(raw.cand ?? raw.carg ?? [], { partido: '', coligacao: '', grupo: '' }, candidatos, grupos)
+  const carg = Array.isArray(raw.carg) && isObj(raw.carg[0]) ? raw.carg[0] : raw
   // Mesmo candidato pode aparecer duas vezes se o arquivo repetir a lista agrupada
   const unicos = [...new Map(candidatos.map((c) => [c.sq || `${c.numero}|${c.nome}`, c])).values()]
   unicos.sort((a, b) => b.votos - a.votos || a.nome.localeCompare(b.nome))
@@ -217,8 +247,56 @@ export function lerResultado(raw: unknown): Resultado {
     pctNulos: num(v.ptvn) || num(v.pvn),
     atualizado: [str(raw.dg), str(raw.hg)].filter(Boolean).join(' '),
     finalizado: str(raw.tf).toLowerCase() === 's',
+    vagas: num(carg.nv),
+    quociente: num(carg.qe),
+    grupos: grupos.filter((g) => g.vagas > 0).sort((a, b) => b.vagas - a.vagas || a.nome.localeCompare(b.nome)),
     candidatos: unicos,
   }
+}
+
+// ---------- quem está se elegendo ----------
+
+export type Situacao = 'eleito' | 'elegendo' | 'segundoTurno' | null
+
+/** Cargos com 2º turno: quem passa de 50% dos válidos leva no 1º turno. */
+const MAIORIA_ABSOLUTA: CargoId[] = ['presidente', 'governador']
+
+/**
+ * Situação de cada candidato se a apuração terminasse agora. Só faz sentido onde a vaga é
+ * decidida: presidente no Brasil, os demais cargos no estado (nunca num município).
+ * O resultado oficial do TSE ("Eleito", "2º turno") sempre prevalece sobre a projeção.
+ */
+export function projetarSituacao(r: Resultado, cargo: Cargo, decideAqui: boolean, turno = 1): Map<Candidato, Situacao> {
+  const out = new Map<Candidato, Situacao>()
+  for (const c of r.candidatos) {
+    out.set(c, c.eleito ? 'eleito' : /2.?\s*turno/i.test(c.situacao) ? 'segundoTurno' : null)
+  }
+  if (!decideAqui || r.finalizado || r.apurado <= 0) return out
+
+  const vagas = r.vagas || 1
+  const marcar = (c: Candidato, s: Situacao) => {
+    if (!out.get(c)) out.set(c, s)
+  }
+  const ordem = r.candidatos.filter((c) => c.votos > 0)
+
+  if (cargo.proporcional) {
+    if (r.grupos.length) {
+      // Vagas de cada partido/federação (calculadas pelo TSE) vão para os mais votados dele
+      for (const g of r.grupos) ordem.filter((c) => c.grupo === g.id).slice(0, g.vagas).forEach((c) => marcar(c, 'elegendo'))
+    } else {
+      ordem.slice(0, vagas).forEach((c) => marcar(c, 'elegendo'))
+    }
+    return out
+  }
+
+  const lider = ordem[0]
+  if (!lider) return out
+  if (MAIORIA_ABSOLUTA.includes(cargo.id) && turno === 1 && lider.pct <= 50) {
+    ordem.slice(0, 2).forEach((c) => marcar(c, 'segundoTurno'))
+  } else {
+    ordem.slice(0, vagas).forEach((c) => marcar(c, 'elegendo'))
+  }
+  return out
 }
 
 // ---------- municípios ----------

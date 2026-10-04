@@ -81,7 +81,8 @@ export function resultadoDemo(cargo: Cargo, uf: string, municipio: string | unde
   if (pst >= 100) {
     const lider = Number(cand[0].pvap.replace(',', '.'))
     if (cargo.proporcional) cand.slice(0, 8).forEach((c) => Object.assign(c, { e: 's', st: 'Eleito' }))
-    else if (lider > 50 || cargo.id === 'senador') Object.assign(cand[0], { e: 's', st: 'Eleito' })
+    else if (cargo.id === 'senador') cand.slice(0, 2).forEach((c) => Object.assign(c, { e: 's', st: 'Eleito' }))
+    else if (lider > 50) Object.assign(cand[0], { e: 's', st: 'Eleito' })
     else cand.slice(0, 2).forEach((c) => (c.st = '2º turno'))
   }
 
@@ -91,6 +92,8 @@ export function resultadoDemo(cargo: Cargo, uf: string, municipio: string | unde
     dg: d.toLocaleDateString('pt-BR'),
     hg: d.toLocaleTimeString('pt-BR'),
     tf: pst >= 100 ? 's' : 'n',
+    // Vagas: deputados com 8 vagas fictícias, senado com 2 (renovação de 2/3 em 2026)
+    nv: String(cargo.proporcional ? 8 : cargo.id === 'senador' ? 2 : 1),
     s: { ts: String(secoes), st: String(Math.round((secoes * pst) / 100)), pst: fmt(pst) },
     e: {
       te: String(eleitores),

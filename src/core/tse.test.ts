@@ -231,3 +231,59 @@ describe('regiões', () => {
     expect(sul?.secoes).toBe(400)
   })
 })
+
+describe('vagas e quem está se elegendo (arquivos reais de 04/10/2026)', () => {
+  it('presidente: 1 vaga; sem maioria absoluta, os 2 primeiros vão ao 2º turno', async () => {
+    const { projetarSituacao } = await import('./tse')
+    const r = lerResultado((await import('./fixtures/br-c0001-e006257-u.json')).default)
+    expect(r.vagas).toBe(1)
+    const sit = projetarSituacao(r, cargoPorId('presidente'), true)
+    // Líder com 50,63% dos válidos: elegeria no 1º turno
+    expect(sit.get(r.candidatos[0])).toBe('elegendo')
+    expect(sit.get(r.candidatos[1])).toBe(null)
+    // Num estado não se decide a eleição de presidente
+    const noEstado = projetarSituacao(r, cargoPorId('presidente'), false)
+    expect([...noEstado.values()].every((v) => v === null)).toBe(true)
+  })
+
+  it('maioria absoluta exige mais de 50%', async () => {
+    const { projetarSituacao } = await import('./tse')
+    const r = lerResultado({
+      s: { pst: '10,00' },
+      carg: [{ nv: '1', agr: [{ par: [{ cand: [
+        { n: '1', nm: 'A', vap: '50', pvap: '50,00' },
+        { n: '2', nm: 'B', vap: '30', pvap: '30,00' },
+        { n: '3', nm: 'C', vap: '20', pvap: '20,00' },
+      ] }] }] }],
+    })
+    const sit = projetarSituacao(r, cargoPorId('governador'), true)
+    expect(r.candidatos.map((c) => sit.get(c))).toEqual(['segundoTurno', 'segundoTurno', null])
+    // No 2º turno não há maioria absoluta a exigir
+    const t2 = projetarSituacao(r, cargoPorId('governador'), true, 2)
+    expect(r.candidatos.map((c) => t2.get(c))).toEqual(['elegendo', null, null])
+  })
+
+  it('senador em 2026: 2 vagas, os 2 mais votados', async () => {
+    const { projetarSituacao } = await import('./tse')
+    const r = lerResultado((await import('./fixtures/sp-c0005-e006259-u.json')).default)
+    expect(r.vagas).toBe(2)
+    const sit = projetarSituacao(r, cargoPorId('senador'), true)
+    expect(r.candidatos.filter((c) => sit.get(c) === 'elegendo')).toEqual(r.candidatos.slice(0, 2))
+  })
+
+  it('deputado distrital: vagas de cada partido/federação vão aos mais votados dele', async () => {
+    const { projetarSituacao } = await import('./tse')
+    const r = lerResultado((await import('./fixtures/df-c0008-e006259-u.json')).default)
+    expect(r.vagas).toBe(24)
+    expect(r.quociente).toBe(66714)
+    expect(r.grupos.reduce((t, g) => t + g.vagas, 0)).toBe(24)
+    expect(r.grupos[0]).toMatchObject({ nome: 'PL', vagas: 5 })
+    const sit = projetarSituacao(r, cargoPorId('depDistrital'), true)
+    const elegendo = r.candidatos.filter((c) => sit.get(c) === 'elegendo')
+    expect(elegendo).toHaveLength(24)
+    // Os 5 do PL são os 5 mais votados do PL
+    const pl = r.grupos[0].id
+    const doPl = r.candidatos.filter((c) => c.grupo === pl)
+    expect(elegendo.filter((c) => c.grupo === pl)).toEqual(doPl.slice(0, 5))
+  })
+})

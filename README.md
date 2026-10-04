@@ -9,7 +9,10 @@ Brasil inteiro, por estado ou por município. Os dados vêm dos **arquivos públ
 - atualização automática a cada minuto (pausa com o app em segundo plano e para quando a totalização termina)
 - **mapa do Brasil** colorido pela % de urnas apuradas, por **estado** (toque no estado para ver o resultado dele) ou
   por **região** (Norte, Nordeste, Centro-Oeste, Sudeste e Sul, somando as seções dos estados)
-- busca de município e de candidato (deputados)
+- **vagas de cada cargo** e destaque de **quem está se elegendo** se a apuração terminasse agora: maioria absoluta
+  (ou 2º turno) para presidente e governador, os 2 mais votados para senador, e para deputados as vagas que o TSE
+  calcula para cada partido/federação, preenchidas pelos mais votados dele
+- busca de município e de candidato (deputados), com filtro “só quem está se elegendo”
 - 1º e 2º turno
 - **modo demonstração** com dados fictícios, para ver o app funcionando fora do dia da eleição
 - app instalável (PWA): no iPhone, Safari → Compartilhar → **Adicionar à Tela de Início**
