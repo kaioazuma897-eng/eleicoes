@@ -16,7 +16,7 @@ export function AjustesPainel({ ajustes, onSalvar }: Props) {
       <summary>Ajustes da fonte de dados</summary>
       <p className="pequeno">
         O app lê os arquivos públicos do TSE, os mesmos do app oficial “Resultados”. Se a detecção automática da
-        eleição falhar, informe os códigos (ex.: em 2022 eram 544 para presidente e 546 para os demais cargos).
+        eleição falhar, informe os códigos (em 2026: 6257 para presidente e 6259 para os demais cargos no 1º turno).
       </p>
       <label className="campo">
         <span>Endereço</span>

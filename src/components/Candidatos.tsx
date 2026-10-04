@@ -64,8 +64,9 @@ export function Candidatos({ candidatos, cargo, foto }: Props) {
               </div>
               {(c.coligacao || c.vice) && (
                 <div className="pequeno cand-extra">
-                  {c.coligacao}
-                  {c.vice && ` · ${cargo.id === 'senador' ? 'Suplentes' : 'Vice'}: ${c.vice}`}
+                  {[c.coligacao, c.vice && `${cargo.id === 'senador' ? 'Suplentes' : 'Vice'}: ${c.vice}`]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </div>
               )}
             </div>

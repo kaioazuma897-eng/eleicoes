@@ -74,10 +74,14 @@ export interface Fonte {
   ciclo: string
 }
 
-/** Arquivo de resultado de um cargo numa abrangência: Brasil, estado ou município. */
+/**
+ * Arquivo de resultado de um cargo numa abrangência: Brasil, estado ou município.
+ * Desde 2024 o TSE publica o arquivo "unificado" (dados/…-u.json), que substituiu o
+ * dados-simplificados/…-r.json de 2022.
+ */
 export function urlResultado(f: Fonte, eleicao: string, cargo: Cargo, uf: string, municipio?: string): string {
   const local = `${uf}${municipio ?? ''}`
-  return `${f.base}/${f.ciclo}/${eleicao}/dados-simplificados/${uf}/${local}-c${pad(cargo.codigo, 4)}-e${pad(eleicao, 6)}-r.json`
+  return `${f.base}/${f.ciclo}/${eleicao}/dados/${uf}/${local}-c${pad(cargo.codigo, 4)}-e${pad(eleicao, 6)}-u.json`
 }
 
 export const urlMunicipios = (f: Fonte, eleicao: string) =>
@@ -134,15 +138,16 @@ type Obj = Record<string, unknown>
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v)
 const str = (v: unknown) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '')
 
-/** Junta todos os objetos de candidato do arquivo, guardando o partido de onde estavam aninhados. */
-function coletarCandidatos(node: unknown, partido: string, out: Candidato[]) {
+/**
+ * Junta todos os objetos de candidato do arquivo. No arquivo unificado eles ficam em
+ * carg → agr (coligação ou partido isolado) → par (partido) → cand; guardamos de onde vieram.
+ */
+function coletarCandidatos(node: unknown, ctx: { partido: string; coligacao: string }, out: Candidato[]) {
   if (Array.isArray(node)) {
-    for (const item of node) coletarCandidatos(item, partido, out)
+    for (const item of node) coletarCandidatos(item, ctx, out)
     return
   }
   if (!isObj(node)) return
-  // Nos arquivos de cargos proporcionais os candidatos ficam dentro de partido/federação
-  const sigla = str(node.sg) || partido
   const ehCandidato = 'vap' in node && ('nm' in node || 'nmu' in node)
   if (ehCandidato) {
     const situacao = str(node.st)
@@ -150,8 +155,8 @@ function coletarCandidatos(node: unknown, partido: string, out: Candidato[]) {
       numero: str(node.n),
       nome: str(node.nmu) || str(node.nm),
       sq: str(node.sqcand),
-      partido: str(node.sgp) || sigla,
-      coligacao: str(node.cc),
+      partido: str(node.sgp) || ctx.partido,
+      coligacao: str(node.cc) || ctx.coligacao,
       votos: num(node.vap),
       pct: num(node.pvap),
       eleito: str(node.e).toLowerCase() === 's' || /^eleit/i.test(situacao),
@@ -160,8 +165,13 @@ function coletarCandidatos(node: unknown, partido: string, out: Candidato[]) {
     })
     return
   }
+  const filho = {
+    partido: str(node.sg) || ctx.partido,
+    // tp "c" = coligação; "i" = partido isolado (aí o nome do grupo é o do próprio partido)
+    coligacao: str(node.tp) === 'c' && str(node.nm) ? str(node.nm) : ctx.coligacao,
+  }
   for (const v of Object.values(node)) {
-    if (Array.isArray(v) || isObj(v)) coletarCandidatos(v, sigla, out)
+    if (Array.isArray(v) || isObj(v)) coletarCandidatos(v, filho, out)
   }
 }
 
@@ -170,7 +180,7 @@ function viceDe(c: Obj): string {
   if (!Array.isArray(vs)) return str(c.nv)
   return vs
     .filter(isObj)
-    .map((v) => str(v.nm))
+    .map((v) => str(v.nmu) || str(v.nm))
     .filter(Boolean)
     .join(', ')
 }
@@ -182,7 +192,7 @@ export function lerResultado(raw: unknown): Resultado {
   const v = isObj(raw.v) ? raw.v : {}
 
   const candidatos: Candidato[] = []
-  coletarCandidatos(raw.cand ?? raw.carg ?? [], '', candidatos)
+  coletarCandidatos(raw.cand ?? raw.carg ?? [], { partido: '', coligacao: '' }, candidatos)
   // Mesmo candidato pode aparecer duas vezes se o arquivo repetir a lista agrupada
   const unicos = [...new Map(candidatos.map((c) => [c.sq || `${c.numero}|${c.nome}`, c])).values()]
   unicos.sort((a, b) => b.votos - a.votos || a.nome.localeCompare(b.nome))
@@ -254,14 +264,18 @@ export interface Eleicao {
   turno: number
   /** Ex.: "04/10/2026" */
   data: string
+  /** Pasta do ciclo eleitoral nos arquivos do TSE, ex.: "ele2026". */
+  ciclo: string
 }
 
 /** Eleições listadas no arquivo de configuração do TSE (de todos os anos que ele trouxer). */
 export function lerConfig(raw: unknown): { ciclo: string; eleicoes: Eleicao[] } {
   const eleicoes: Eleicao[] = []
-  const visitar = (node: unknown) => {
-    if (Array.isArray(node)) return node.forEach(visitar)
+  // Cada "pleito" do arquivo traz seu ciclo (ex.: suplementares de 2026 ainda são do ciclo ele2024)
+  const visitar = (node: unknown, cicloPai: string) => {
+    if (Array.isArray(node)) return node.forEach((n) => visitar(n, cicloPai))
     if (!isObj(node)) return
+    const ciclo = /^ele\d{4}$/.test(str(node.c)) ? str(node.c) : cicloPai
     if (Array.isArray(node.e)) {
       for (const e of node.e) {
         if (!isObj(e) || !str(e.cd)) continue
@@ -270,12 +284,13 @@ export function lerConfig(raw: unknown): { ciclo: string; eleicoes: Eleicao[] } 
           nome: str(e.nm),
           turno: num(e.t) || 1,
           data: str(e.dt) || str(node.dt),
+          ciclo,
         })
       }
     }
-    for (const v of Object.values(node)) if (Array.isArray(v) || isObj(v)) visitar(v)
+    for (const v of Object.values(node)) if (Array.isArray(v) || isObj(v)) visitar(v, ciclo)
   }
-  visitar(raw)
+  visitar(raw, '')
   const ciclo = isObj(raw) ? str(raw.c) : ''
   return { ciclo, eleicoes: [...new Map(eleicoes.map((e) => [e.codigo, e])).values()] }
 }

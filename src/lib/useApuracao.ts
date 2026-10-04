@@ -58,7 +58,9 @@ export function useTurnos(ajustes: Ajustes) {
         if (!vivo) return
         const { eleicoes } = lerConfig(raw)
         const ano = ajustes.ciclo.replace(/\D/g, '')
-        const doAno = eleicoes.filter((e) => !ano || e.data.endsWith(ano) || e.nome.includes(ano))
+        const doAno = eleicoes.filter((e) =>
+          e.ciclo ? e.ciclo === ajustes.ciclo : !ano || e.data.endsWith(ano) || e.nome.includes(ano),
+        )
         const t = montarTurnos(doAno)
         if (!t.length) throw new ErroTse(`O TSE ainda não listou as eleições de ${ano || 'agora'}.`, 'indisponivel')
         setTurnos(t)

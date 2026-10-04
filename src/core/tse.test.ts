@@ -28,11 +28,11 @@ describe('num', () => {
 
 describe('endereços', () => {
   it('monta o arquivo de resultado como o app oficial', () => {
-    expect(urlResultado(fonte, '544', cargoPorId('presidente'), 'br')).toBe(
-      'https://resultados.tse.jus.br/oficial/ele2026/544/dados-simplificados/br/br-c0001-e000544-r.json',
+    expect(urlResultado(fonte, '6257', cargoPorId('presidente'), 'br')).toBe(
+      'https://resultados.tse.jus.br/oficial/ele2026/6257/dados/br/br-c0001-e006257-u.json',
     )
-    expect(urlResultado(fonte, '546', cargoPorId('governador'), 'sp', '71072')).toBe(
-      'https://resultados.tse.jus.br/oficial/ele2026/546/dados-simplificados/sp/sp71072-c0003-e000546-r.json',
+    expect(urlResultado(fonte, '6259', cargoPorId('governador'), 'sp', '71072')).toBe(
+      'https://resultados.tse.jus.br/oficial/ele2026/6259/dados/sp/sp71072-c0003-e006259-u.json',
     )
     expect(urlMunicipios(fonte, '544')).toBe(
       'https://resultados.tse.jus.br/oficial/ele2026/544/config/mun-e000544-cm.json',
@@ -127,7 +127,15 @@ describe('eleições disponíveis', () => {
       c: 'ele2026',
       pl: [
         {
+          // Suplementar realizada em 2026, mas do ciclo de 2024: não deve entrar
+          cd: '3237',
+          c: 'ele2024',
+          dt: '21/06/2026',
+          e: [{ cd: '6278', t: '1', nm: 'Eleição Suplementar - Roraima' }],
+        },
+        {
           cd: '1',
+          c: 'ele2026',
           dt: '04/10/2026',
           e: [
             { cd: '700', t: '1', nm: 'Eleição Geral Federal 2026' },
@@ -145,9 +153,49 @@ describe('eleições disponíveis', () => {
       ],
     })
     expect(ciclo).toBe('ele2026')
-    expect(montarTurnos(eleicoes)).toEqual([
+    expect(eleicoes.find((e) => e.codigo === '6278')?.ciclo).toBe('ele2024')
+    expect(montarTurnos(eleicoes.filter((e) => e.ciclo === 'ele2026'))).toEqual([
       { turno: 1, data: '04/10/2026', federal: '700', estadual: '702' },
       { turno: 2, data: '25/10/2026', federal: '701', estadual: '703' },
     ])
+  })
+})
+
+describe('arquivos reais do TSE (apuração de 04/10/2026, parcial)', () => {
+  it('lê o resultado unificado de presidente no Brasil', async () => {
+    const r = lerResultado((await import('./fixtures/br-c0001-e006257-u.json')).default)
+    expect(r.apurado).toBeCloseTo(36.6)
+    expect(r.secoes).toBe(499248)
+    expect(r.finalizado).toBe(false)
+    expect(r.atualizado).toBe('04/10/2026 18:37:14')
+    expect(r.pctComparecimento).toBeCloseTo(79.14)
+    expect(r.validos).toBe(42231773)
+    expect(r.candidatos).toHaveLength(12)
+    expect(r.candidatos[0]).toMatchObject({
+      numero: '22',
+      partido: 'PL',
+      votos: 21383323,
+      pct: 50.63,
+      sq: '280002551544',
+      eleito: false,
+    })
+    expect(r.candidatos[0].vice).toBeTruthy()
+    // Votos em ordem decrescente
+    expect(r.candidatos.every((c, i, a) => i === 0 || a[i - 1].votos >= c.votos)).toBe(true)
+  })
+
+  it('traz o nome da coligação do governador', async () => {
+    const r = lerResultado((await import('./fixtures/sp-c0003-e006259-u.json')).default)
+    expect(r.candidatos[0].coligacao).toBe('CORAGEM PARA SEGUIR AVANÇANDO')
+    expect(r.candidatos[0].numero).toBe('10')
+  })
+})
+
+describe('arquivo real do TSE (ele-c.json de 02/10/2026)', () => {
+  it('encontra as eleições federal e estadual de 2026 no meio das suplementares', async () => {
+    const raw = (await import('./fixtures/ele-c-2026-10-02.json')).default
+    const { eleicoes } = lerConfig(raw)
+    const de2026 = eleicoes.filter((e) => e.ciclo === 'ele2026')
+    expect(montarTurnos(de2026)).toEqual([{ turno: 1, data: '04/10/2026', federal: '6257', estadual: '6259' }])
   })
 })
