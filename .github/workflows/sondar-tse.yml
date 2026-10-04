@@ -1,9 +1,13 @@
-# Diagnóstico: baixa os arquivos públicos do TSE e guarda na branch "sondagem-tse",
-# para conferir o formato dos dados de 2026. Não afeta o app publicado.
+# Diagnóstico: baixa arquivos públicos do TSE e guarda na branch "sondagem-tse",
+# para conferir o formato dos dados. Não afeta o app publicado.
 name: Sondar TSE
 
 on:
   workflow_dispatch:
+    inputs:
+      caminhos:
+        description: Caminhos sob resultados.tse.jus.br/oficial, separados por espaço
+        required: true
 
 permissions:
   contents: write
@@ -13,42 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar arquivos
+        env:
+          CAMINHOS: ${{ inputs.caminhos }}
         run: |
-          set -u
-          B=https://resultados.tse.jus.br/oficial
           mkdir -p tse && cd tse
-          get() { # url arquivo
-            code=$(curl -sS -o "$2" -w '%{http_code}' -H 'Origin: https://kaioazuma897-eng.github.io' "$1" || echo 000)
-            echo "$code $1" >> status.txt
-            [ "$code" = 200 ] || rm -f "$2"
-          }
-          get "$B/comum/config/ele-c.json" ele-c.json
-          python3 - <<'PY' > codigos.txt
-          import json
-          d = json.load(open('ele-c.json'))
-          out = []
-          def walk(n):
-              if isinstance(n, dict):
-                  if isinstance(n.get('e'), list):
-                      for e in n['e']:
-                          if isinstance(e, dict) and e.get('cd'): out.append(e['cd'])
-                  for v in n.values(): walk(v)
-              elif isinstance(n, list):
-                  for v in n: walk(v)
-          walk(d)
-          print('\n'.join(dict.fromkeys(out)))
-          PY
-          for E in $(cat codigos.txt); do
-            P=$(printf '%06d' "$E")
-            get "$B/ele2026/$E/config/mun-e$P-cm.json" "mun-$E.json"
-            for C in 0001 0003 0005 0006 0007; do
-              for L in br sp df; do
-                get "$B/ele2026/$E/dados-simplificados/$L/$L-c$C-e$P-r.json" "r-$E-$L-$C.json"
-              done
-            done
-            get "$B/ele2026/$E/dados-simplificados/sp/sp71072-c0001-e$P-r.json" "r-$E-sp71072-0001.json"
+          for C in $CAMINHOS; do
+            F=$(echo "$C" | tr '/' '_')
+            code=$(curl -sS -o "$F" -w '%{http_code}' "https://resultados.tse.jus.br/oficial/$C" || echo 000)
+            echo "$code $C" | tee -a status.txt
+            [ "$code" = 200 ] || rm -f "$F"
           done
-          grep -c '^200' status.txt || true
       - name: Guardar na branch sondagem-tse
         run: |
           cd tse
