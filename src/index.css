@@ -975,3 +975,53 @@ select {
   background: var(--ok-soft);
   color: var(--ok);
 }
+
+.amostra.vazio {
+  background: var(--m-vazio);
+}
+
+/* ---------- 2º turno ---------- */
+
+.segundo-turno {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.segundo-turno h3 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+
+.segundo-turno p {
+  margin: 0;
+}
+
+.segundo-turno .botao-link {
+  align-self: flex-start;
+  font-size: 14px;
+}
+
+.finalistas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.finalistas li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.cand-antes {
+  font-variant-numeric: tabular-nums;
+}

@@ -47,11 +47,14 @@ export function useTurnos(ajustes: Ajustes) {
   useEffect(() => {
     setErro(null)
     if (ajustes.modo === 'demo') {
-      setTurnos([{ turno: 1, data: 'demonstração', federal: 'demo', estadual: 'demo' }])
+      setTurnos([
+        { turno: 1, data: 'demonstração', federal: 'demo', estadual: 'demo', ufsEstadual: [] },
+        { turno: 2, data: 'demonstração', federal: 'demo2', estadual: 'demo2', ufsEstadual: ['ac', 'am', 'df', 'es', 'rj', 'rn', 'to'] },
+      ])
       return
     }
     if (ajustes.federal && ajustes.estadual) {
-      setTurnos([{ turno: 1, data: 'códigos manuais', federal: ajustes.federal, estadual: ajustes.estadual }])
+      setTurnos([{ turno: 1, data: 'códigos manuais', federal: ajustes.federal, estadual: ajustes.estadual, ufsEstadual: [] }])
       return
     }
     let vivo = true
@@ -97,6 +100,7 @@ export function useMunicipios(ajustes: Ajustes, eleicao: string | undefined) {
 export interface EstadoApuracao {
   resultado: Resultado | null
   erro: string | null
+  indisponivel: boolean
   carregando: boolean
   /** Segundos até a próxima atualização automática (null = parada). */
   proxima: number | null
@@ -110,6 +114,8 @@ export interface EstadoApuracao {
 export function useResultado(ajustes: Ajustes, eleicao: string | undefined, sel: Selecao): EstadoApuracao {
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  /** O TSE ainda não publicou o arquivo (404): normal antes do início da apuração. */
+  const [indisponivel, setIndisponivel] = useState(false)
   const [carregando, setCarregando] = useState(false)
   const [proxima, setProxima] = useState<number | null>(null)
   const pedido = useRef(0)
@@ -124,18 +130,22 @@ export function useResultado(ajustes: Ajustes, eleicao: string | undefined, sel:
     try {
       const raw =
         ajustes.modo === 'demo'
-          ? resultadoDemo(sel.cargo, sel.uf, sel.municipio)
+          ? resultadoDemo(sel.cargo, sel.uf, sel.municipio, Date.now(), sel.turno)
           : await buscarJson(urlResultado(ajustes, eleicao, sel.cargo, sel.uf, sel.municipio))
       if (id !== pedido.current) return
       ultima.current = Date.now()
       const r = lerResultado(raw)
       setResultado(r)
       setErro(null)
+      setIndisponivel(false)
       setProxima(r.finalizado ? null : INTERVALO_S)
     } catch (e) {
       if (id !== pedido.current) return
+      const naoPublicado = e instanceof ErroTse && e.tipo === 'indisponivel'
       setErro(e instanceof Error ? e.message : String(e))
-      setProxima(INTERVALO_S)
+      setIndisponivel(naoPublicado)
+      // Arquivo ainda não publicado: tenta de novo com menos pressa
+      setProxima(naoPublicado ? INTERVALO_S * 3 : INTERVALO_S)
     } finally {
       if (id === pedido.current) setCarregando(false)
     }
@@ -146,6 +156,7 @@ export function useResultado(ajustes: Ajustes, eleicao: string | undefined, sel:
   useEffect(() => {
     setResultado(null)
     setErro(null)
+    setIndisponivel(false)
     void carregar()
   }, [carregar])
 
@@ -176,7 +187,7 @@ export function useResultado(ajustes: Ajustes, eleicao: string | undefined, sel:
     return () => document.removeEventListener('visibilitychange', aoVoltar)
   }, [])
 
-  return { resultado, erro, carregando, proxima, atualizar: () => void carregar() }
+  return { resultado, erro, indisponivel, carregando, proxima, atualizar: () => void carregar() }
 }
 
 /** % apurada de cada estado (arquivo de acompanhamento do TSE), atualizada a cada minuto. */

@@ -36,7 +36,14 @@ export function progressoDemo(agora = Date.now()): number {
 
 const fmt = (n: number) => n.toFixed(2).replace('.', ',')
 
-export function resultadoDemo(cargo: Cargo, uf: string, municipio: string | undefined, agora = Date.now()): unknown {
+export function resultadoDemo(
+  cargo: Cargo,
+  uf: string,
+  municipio: string | undefined,
+  agora = Date.now(),
+  turno = 1,
+): unknown {
+  if (turno === 2) return segundoTurnoDemo(cargo, uf, municipio, agora)
   const rnd = prng(`${cargo.id}|${uf}|${municipio ?? ''}`)
   const n = cargo.proporcional ? 40 : cargo.id === 'presidente' ? 8 : 5
   const pesos = Array.from({ length: n }, (_, i) => (cargo.proporcional ? 1 / (i + 1.5) : Math.pow(rnd(), 2) + 0.05))
@@ -134,4 +141,32 @@ export function andamentoDemo(agora = Date.now()): unknown {
     return { cdabr: uf, tpabr: uf === 'br' ? 'br' : 'uf', s: { ts: '1000', st: String(Math.round(pst * 10)), pst: fmt(pst) } }
   })
   return { dg: new Date(agora).toLocaleDateString('pt-BR'), hg: new Date(agora).toLocaleTimeString('pt-BR'), abr }
+}
+
+/** 2º turno fictício: os 2 mais votados do 1º turno da demonstração, apurando do zero. */
+function segundoTurnoDemo(cargo: Cargo, uf: string, municipio: string | undefined, agora: number): unknown {
+  const primeiro = resultadoDemo(cargo, uf, municipio, inicio + 3_600_000) as {
+    cand: { vap: string; pvap: string; e: string; st: string }[]
+    v: { vv: string }
+  }
+  const finalistas = primeiro.cand.slice(0, 2)
+  const base = resultadoDemo(cargo, uf, municipio, agora) as {
+    v: { vv: string }
+    s: { pst: string }
+    tf: string
+    cand: unknown[]
+    nv?: string
+  }
+  const validos = Number(base.v.vv)
+  const rnd = prng(`2t|${cargo.id}|${uf}|${municipio ?? ''}`)
+  const pst = progressoDemo(agora)
+  // Disputa apertada que oscila durante a apuração
+  const parteA = 0.5 + (rnd() - 0.5) * 0.12 + Math.sin(pst / 15) * 0.015
+  const cand = finalistas.map((c, i) => {
+    const v = Math.round(validos * (i === 0 ? parteA : 1 - parteA))
+    return { ...c, e: 'n', st: '', vap: String(v), pvap: fmt(validos ? (v / validos) * 100 : 0) }
+  })
+  cand.sort((a, b) => Number(b.vap) - Number(a.vap))
+  if (pst >= 100) Object.assign(cand[0], { e: 's', st: 'Eleito' })
+  return { ...base, nv: '1', cand }
 }

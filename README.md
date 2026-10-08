@@ -13,7 +13,8 @@ Brasil inteiro, por estado ou por município. Os dados vêm dos **arquivos públ
   (ou 2º turno) para presidente e governador, os 2 mais votados para senador, e para deputados as vagas que o TSE
   calcula para cada partido/federação, preenchidas pelos mais votados dele
 - busca de município e de candidato (deputados), com filtro “só quem está se elegendo”
-- 1º e 2º turno
+- 1º e 2º turno: antes do 2º turno, a aba mostra quem disputa (com os votos do 1º turno) ou quem já foi eleito no
+  1º turno; no dia, a apuração aparece sozinha, com a % de cada candidato no 1º turno ao lado para comparar
 - **modo demonstração** com dados fictícios, para ver o app funcionando fora do dia da eleição
 - app instalável (PWA): no iPhone, Safari → Compartilhar → **Adicionar à Tela de Início**
 
@@ -38,7 +39,8 @@ build e publica no GitHub Pages. Ative em **Settings → Pages → Source: GitHu
 | `oficial/ele2026/<eleição>/fotos/<uf>/<sqcand>.jpeg` | foto do candidato |
 
 Nas eleições gerais o TSE usa um código para a eleição **federal** (presidente) e outro para a **estadual**
-(demais cargos) em cada turno — em 2026 são **6257** e **6259** no 1º turno (6258 e 6260 no 2º). O app detecta isso sozinho
+(demais cargos) em cada turno — em 2026 são **6257** e **6259** no 1º turno (6258 e 6260 no 2º). Antes de listar o 2º turno, o TSE já informa os
+códigos dele (campo `cdt2`); o app usa esses códigos e a data constitucional (último domingo de outubro). O app detecta isso sozinho
 pelo `ele-c.json`; se falhar, informe os códigos em **Ajustes da fonte de dados**.
 
 O formato desses arquivos não tem documentação oficial, então a leitura ([`src/core/tse.ts`](src/core/tse.ts))

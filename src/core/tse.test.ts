@@ -154,7 +154,7 @@ describe('eleições disponíveis', () => {
     })
     expect(ciclo).toBe('ele2026')
     expect(eleicoes.find((e) => e.codigo === '6278')?.ciclo).toBe('ele2024')
-    expect(montarTurnos(eleicoes.filter((e) => e.ciclo === 'ele2026'))).toEqual([
+    expect(montarTurnos(eleicoes.filter((e) => e.ciclo === 'ele2026'))).toMatchObject([
       { turno: 1, data: '04/10/2026', federal: '700', estadual: '702' },
       { turno: 2, data: '25/10/2026', federal: '701', estadual: '703' },
     ])
@@ -196,7 +196,11 @@ describe('arquivo real do TSE (ele-c.json de 02/10/2026)', () => {
     const raw = (await import('./fixtures/ele-c-2026-10-02.json')).default
     const { eleicoes } = lerConfig(raw)
     const de2026 = eleicoes.filter((e) => e.ciclo === 'ele2026')
-    expect(montarTurnos(de2026)).toEqual([{ turno: 1, data: '04/10/2026', federal: '6257', estadual: '6259' }])
+    // O 2º turno ainda não está listado, mas os códigos já vêm reservados (cdt2)
+    expect(montarTurnos(de2026)).toEqual([
+      { turno: 1, data: '04/10/2026', federal: '6257', estadual: '6259', ufsEstadual: [] },
+      { turno: 2, data: '25/10/2026', federal: '6258', estadual: '6260', ufsEstadual: [], previsto: true },
+    ])
   })
 })
 
@@ -285,5 +289,43 @@ describe('vagas e quem está se elegendo (arquivos reais de 04/10/2026)', () => 
     const pl = r.grupos[0].id
     const doPl = r.candidatos.filter((c) => c.grupo === pl)
     expect(elegendo.filter((c) => c.grupo === pl)).toEqual(doPl.slice(0, 5))
+  })
+})
+
+describe('2º turno', () => {
+  it('cai no último domingo de outubro', async () => {
+    const { dataSegundoTurno } = await import('./tse')
+    expect(dataSegundoTurno(2026)).toBe('25/10/2026')
+    expect(dataSegundoTurno(2022)).toBe('30/10/2022')
+    expect(dataSegundoTurno(2018)).toBe('28/10/2018')
+  })
+
+  it('usa os estados listados pelo TSE quando o 2º turno aparece na configuração', () => {
+    const { eleicoes } = lerConfig({
+      pl: [
+        { c: 'ele2026', dt: '04/10/2026', e: [
+          { cd: '6257', cdt2: '6258', t: '1', nm: 'Eleição Ordinária Federal - 2026 1º Turno', abr: [{ cd: 'br' }] },
+          { cd: '6259', cdt2: '6260', t: '1', nm: 'Eleição Ordinária Estadual - 2026 1º Turno', abr: [{ cd: 'br' }] },
+        ] },
+        { c: 'ele2026', dt: '25/10/2026', e: [
+          { cd: '6258', t: '2', nm: 'Eleição Ordinária Federal - 2026 2º Turno', abr: [{ cd: 'br' }] },
+          { cd: '6260', t: '2', nm: 'Eleição Ordinária Estadual - 2026 2º Turno', abr: [{ cd: 'RJ' }, { cd: 'df' }] },
+        ] },
+      ],
+    })
+    const t = montarTurnos(eleicoes)
+    expect(t[1]).toEqual({ turno: 2, data: '25/10/2026', federal: '6258', estadual: '6260', ufsEstadual: ['rj', 'df'] })
+  })
+
+  it('no resultado final do 1º turno, quem vai ao 2º turno não aparece como eleito', async () => {
+    const { projetarSituacao } = await import('./tse')
+    const r = lerResultado((await import('./fixtures/br-c0001-e006257-u-final.json')).default)
+    expect(r.finalizado).toBe(true)
+    expect(r.candidatos.slice(0, 2).map((c) => [c.nome, c.eleito, c.situacao])).toEqual([
+      ['FLAVIO BOLSONARO', false, '2º turno'],
+      ['LULA', false, '2º turno'],
+    ])
+    const sit = projetarSituacao(r, cargoPorId('presidente'), true)
+    expect(r.candidatos.slice(0, 3).map((c) => sit.get(c))).toEqual(['segundoTurno', 'segundoTurno', null])
   })
 })

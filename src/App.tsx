@@ -4,6 +4,7 @@ import { Candidatos } from './components/Candidatos'
 import { Local } from './components/Local'
 import { Mapa } from './components/Mapa'
 import { Placar } from './components/Placar'
+import { AntesDoSegundoTurno, passou } from './components/SegundoTurno'
 import { CARGOS, cargoExiste, cargoPorId, UFS, urlFoto, type CargoId, type Turno } from './core/tse'
 import { gravar, ler } from './lib/storage'
 import { AJUSTES_PADRAO, useAndamento, useMunicipios, useResultado, useTurnos, type Ajustes } from './lib/useApuracao'
@@ -24,7 +25,8 @@ const temSegundoTurno = (id: CargoId) => id === 'presidente' || id === 'governad
 
 export default function App() {
   const [ajustes, setAjustes] = useState<Ajustes>(() => ler('ajustes', AJUSTES_PADRAO))
-  const [escolha, setEscolha] = useState<Escolha>(() => ler('escolha', ESCOLHA_PADRAO))
+  // O turno não fica salvo: ao abrir, o app mostra o turno mais recente que já começou
+  const [escolha, setEscolha] = useState<Escolha>(() => ({ ...ler('escolha', ESCOLHA_PADRAO), turno: 0 }))
   useEffect(() => gravar('ajustes', ajustes), [ajustes])
   useEffect(() => gravar('escolha', escolha), [escolha])
 
@@ -33,7 +35,21 @@ export default function App() {
   const cargo = cargoPorId(escolha.cargo)
   const eleicao = turno ? (cargo.esfera === 'federal' ? turno.federal : turno.estadual) : undefined
 
-  const municipios = useMunicipios(ajustes, turno?.federal)
+  // No 2º turno, o resultado do 1º turno no mesmo lugar: quem disputa e a comparação
+  const turno1 = turnos?.find((t) => t.turno === 1)
+  const noSegundo = turno?.turno === 2
+  const eleicao1 = turno1 ? (cargo.esfera === 'federal' ? turno1.federal : turno1.estadual) : undefined
+  const primeiro = useResultado(ajustes, noSegundo ? eleicao1 : undefined, {
+    turno: 1,
+    cargo,
+    uf: escolha.uf,
+    municipio: escolha.municipio,
+  })
+  // Presidente se decide no Brasil; os demais cargos, no estado inteiro (nunca num município)
+  const decideAqui = cargo.nacional ? escolha.uf === 'br' : escolha.uf !== 'br' && !escolha.municipio
+
+  // A lista de municípios do 2º turno só sai perto da eleição; a do 1º turno serve
+  const municipios = useMunicipios(ajustes, turno1?.federal ?? turno?.federal)
   const andamento = useAndamento(ajustes, eleicao)
   const apuracao = useResultado(ajustes, eleicao, {
     turno: turno?.turno ?? 1,
@@ -110,7 +126,8 @@ export default function App() {
               aria-selected={t.turno === turno?.turno}
               onClick={() => setEscolha((e) => ({ ...e, turno: t.turno }))}
             >
-              {t.turno}º turno <span className="pequeno">{t.data}</span>
+              {t.turno}º turno{' '}
+              <span className="pequeno">{t.previsto && !passou(t.data) ? `em ${t.data}` : t.data}</span>
             </button>
           ))}
         </div>
@@ -150,7 +167,21 @@ export default function App() {
 
       {!turnos && !erroTurnos && <p className="carregando">Buscando eleições no TSE…</p>}
 
-      {apuracao.erro && (
+      {noSegundo && apuracao.indisponivel && turno && (
+        <AntesDoSegundoTurno
+          cargo={cargo}
+          nomeLugar={nomeLugar ?? ''}
+          data={turno.data}
+          primeiro={primeiro.resultado}
+          decideAqui={decideAqui}
+          foto={(c) =>
+            demo || !c.sq || !eleicao1 ? null : urlFoto(ajustes, eleicao1, cargo.nacional ? 'br' : escolha.uf, c.sq)
+          }
+          onVerPrimeiro={() => setEscolha((e) => ({ ...e, turno: 1 }))}
+        />
+      )}
+
+      {apuracao.erro && !(noSegundo && apuracao.indisponivel) && (
         <div className="aviso aviso-erro" role="alert">
           <p>{apuracao.erro}</p>
           {apuracao.proxima !== null && <p className="pequeno">Nova tentativa em {apuracao.proxima}s.</p>}
@@ -173,6 +204,7 @@ export default function App() {
                 ufs={andamento.dados.ufs}
                 atualizado={andamento.dados.atualizado}
                 selecionada={escolha.uf}
+                rotuloVazio={noSegundo && !cargo.nacional ? 'Sem 2º turno' : 'Sem dados'}
                 onEscolher={(uf) =>
                   // Tocar de novo no estado escolhido volta para o Brasil (quando o cargo tem resultado nacional)
                   mudarLocal(uf === escolha.uf && cargo.nacional ? 'br' : uf)
@@ -187,8 +219,8 @@ export default function App() {
             resultado={apuracao.resultado}
             cargo={cargo}
             turno={turno?.turno ?? 1}
-            // Presidente se decide no Brasil; os demais cargos, no estado inteiro (nunca num município)
-            decideAqui={cargo.nacional ? escolha.uf === 'br' : escolha.uf !== 'br' && !escolha.municipio}
+            decideAqui={decideAqui}
+            anterior={noSegundo ? (primeiro.resultado ?? undefined) : undefined}
             foto={(c) =>
               demo || !c.sq ? null : urlFoto(ajustes, eleicao, cargo.nacional ? 'br' : escolha.uf, c.sq)
             }
@@ -211,10 +243,5 @@ function escolherTurno(turnos: Turno[] | null, escolhido: number): Turno | undef
   if (!turnos?.length) return undefined
   const exato = turnos.find((t) => t.turno === escolhido)
   if (exato) return exato
-  const hoje = new Date()
-  const passados = turnos.filter((t) => {
-    const [d, m, a] = t.data.split('/').map(Number)
-    return !a || new Date(a, m - 1, d) <= hoje
-  })
-  return passados.at(-1) ?? turnos[0]
+  return turnos.filter((t) => passou(t.data)).at(-1) ?? turnos[0]
 }

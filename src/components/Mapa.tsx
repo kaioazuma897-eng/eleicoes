@@ -29,9 +29,11 @@ interface Props {
   atualizado: string
   selecionada: string
   onEscolher: (uf: string) => void
+  /** Legenda dos estados sem dados (ex.: sem 2º turno para governador). */
+  rotuloVazio?: string
 }
 
-export function Mapa({ ufs, atualizado, selecionada, onEscolher }: Props) {
+export function Mapa({ ufs, atualizado, selecionada, onEscolher, rotuloVazio = 'Sem dados' }: Props) {
   const [visao, setVisao] = useState<Visao>(() => ler('mapa', { visao: 'estados' as Visao }).visao)
   useEffect(() => gravar('mapa', { visao }), [visao])
   const [foco, setFoco] = useState<string | null>(null)
@@ -87,43 +89,45 @@ export function Mapa({ ufs, atualizado, selecionada, onEscolher }: Props) {
         }}
       />
     )
-        }
+  }
 
   return (
     <section className="mapa card" aria-label={`Urnas apuradas por ${porRegioes ? 'região' : 'estado'}`}>
       <div className="mapa-topo">
         <h3>Urnas apuradas por {porRegioes ? 'região' : 'estado'}</h3>
         <div className="segmentos mini" role="tablist" aria-label="Ver o mapa por">
-    {(['estados', 'regioes'] as const).map((v) => (
-      <button
-        key={v}
-        role="tab"
-        aria-selected={visao === v}
-        onClick={() => {
-          setVisao(v)
-          setFoco(null)
-        }}
-      >
-        {v === 'estados' ? 'Estados' : 'Regiões'}
-      </button>
-    ))}
+          {(['estados', 'regioes'] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={visao === v}
+              onClick={() => {
+                setVisao(v)
+                setFoco(null)
+              }}
+            >
+              {v === 'estados' ? 'Estados' : 'Regiões'}
+            </button>
+          ))}
         </div>
       </div>
       {atualizado && <span className="pequeno">TSE: {atualizado}</span>}
 
       <div className="mapa-info" aria-live="polite">
         {info && destaque ? (
-    <>
-      <strong>{nomeDestaque}</strong> · {fmtPct(info.apurado)} apurado
-      <span className="pequeno">
-        {' '}
-        ({fmtVotos(info.secoesTotalizadas)} de {fmtVotos(info.secoes)} seções)
-      </span>
-    </>
+          <>
+            <strong>{nomeDestaque}</strong> · {fmtPct(info.apurado)} apurado
+            <span className="pequeno">
+              {' '}
+              ({fmtVotos(info.secoesTotalizadas)} de {fmtVotos(info.secoes)} seções)
+            </span>
+          </>
         ) : (
-    <span className="pequeno">
-      {porRegioes ? 'Toque em uma região para ver o andamento dela' : 'Toque em um estado para ver o resultado dele'}
-    </span>
+          <span className="pequeno">
+            {porRegioes
+              ? 'Toque em uma região para ver o andamento dela'
+              : 'Toque em um estado para ver o resultado dele'}
+          </span>
         )}
       </div>
 
@@ -134,48 +138,54 @@ export function Mapa({ ufs, atualizado, selecionada, onEscolher }: Props) {
         aria-label="Mapa do Brasil"
       >
         {porRegioes
-    ? // Por região: cada região ganha um contorno grosso na cor do cartão e, por cima, os
-      // seus estados sem divisas. O que sobra do contorno é só a divisa entre regiões.
-      REGIOES.flatMap((r) => {
-        const dela = MAPA.locations.filter((l) => r.ufs.includes(l.id))
-        return [
-          ...dela.map((l) => <path key={`divisa-${l.id}`} d={l.path} className="divisa-regiao" aria-hidden />),
-          ...dela.map(desenharUf),
-        ]
-      })
-    : MAPA.locations.map(desenharUf)}
+          ? // Por região: cada região ganha um contorno grosso na cor do cartão e, por cima, os
+            // seus estados sem divisas. O que sobra do contorno é só a divisa entre regiões.
+            REGIOES.flatMap((r) => {
+              const dela = MAPA.locations.filter((l) => r.ufs.includes(l.id))
+              return [
+                ...dela.map((l) => <path key={`divisa-${l.id}`} d={l.path} className="divisa-regiao" aria-hidden />),
+                ...dela.map(desenharUf),
+              ]
+            })
+          : MAPA.locations.map(desenharUf)}
         {/* O estado escolhido por cima, para o contorno não ficar escondido pelos vizinhos */}
         {!porRegioes &&
-    MAPA.locations
-      .filter((l) => l.id === selecionada)
-      .flatMap((l) => [
-        // Halo na cor do cartão por baixo: o contorno aparece até sobre os azuis mais fortes
-        <path key="halo" d={l.path} className="uf-halo" aria-hidden />,
-        <path key="sel" d={l.path} className="uf-contorno" aria-hidden />,
-      ])}
+          MAPA.locations
+            .filter((l) => l.id === selecionada)
+            .flatMap((l) => [
+              // Halo na cor do cartão por baixo: o contorno aparece até sobre os azuis mais fortes
+              <path key="halo" d={l.path} className="uf-halo" aria-hidden />,
+              <path key="sel" d={l.path} className="uf-contorno" aria-hidden />,
+            ])}
         {porRegioes &&
-    REGIOES.map((r) => {
-      const a = porRegiao.get(r.id)
-      return (
-        <text key={r.id} x={r.rotulo[0]} y={r.rotulo[1]} className="rotulo-regiao" aria-hidden>
-          <tspan x={r.rotulo[0]}>{r.nome}</tspan>
-          {a && (
-            <tspan x={r.rotulo[0]} dy="1.2em" className="rotulo-pct">
-              {fmtPct(a.apurado)}
-            </tspan>
-          )}
-        </text>
-      )
-    })}
+          REGIOES.map((r) => {
+            const a = porRegiao.get(r.id)
+            return (
+              <text key={r.id} x={r.rotulo[0]} y={r.rotulo[1]} className="rotulo-regiao" aria-hidden>
+                <tspan x={r.rotulo[0]}>{r.nome}</tspan>
+                {a && (
+                  <tspan x={r.rotulo[0]} dy="1.2em" className="rotulo-pct">
+                    {fmtPct(a.apurado)}
+                  </tspan>
+                )}
+              </text>
+            )
+          })}
       </svg>
 
       <div className="legenda" aria-label="Legenda">
         {FAIXAS.map((f, i) => (
-    <span key={f.rotulo} className="legenda-item">
-      <span className={`amostra f${i}`} aria-hidden />
-      {f.rotulo}
-    </span>
+          <span key={f.rotulo} className="legenda-item">
+            <span className={`amostra f${i}`} aria-hidden />
+            {f.rotulo}
+          </span>
         ))}
+        {!porRegioes && MAPA.locations.some((l) => !porUf.has(l.id)) && (
+          <span className="legenda-item">
+            <span className="amostra vazio" aria-hidden />
+            {rotuloVazio}
+          </span>
+        )}
       </div>
 
       {exterior && <p className="pequeno mapa-exterior">Exterior: {fmtPct(exterior.apurado)} apurado</p>}
@@ -183,34 +193,34 @@ export function Mapa({ ufs, atualizado, selecionada, onEscolher }: Props) {
       <details className="mapa-lista">
         <summary>Ver em lista</summary>
         <table>
-    <thead>
-      <tr>
-        <th>{porRegioes ? 'Região' : 'Estado'}</th>
-        <th>Apurado</th>
-        <th>Seções</th>
-      </tr>
-    </thead>
-    <tbody>
-      {(porRegioes
-        ? regioes.map((r) => ({ ...r, rotulo: r.nome }))
-        : ufs
-            .filter((u) => u.uf !== 'br')
-            .map((u) => ({ ...u, rotulo: u.uf === 'zz' ? 'Exterior' : nomeUf(u.uf) }))
-      )
-        .sort((a, b) => b.apurado - a.apurado)
-        .map((u) => (
-          <tr key={u.uf}>
-            <td>{u.rotulo}</td>
-            <td>{fmtPct(u.apurado)}</td>
-            <td>
-              {fmtVotos(u.secoesTotalizadas)} / {fmtVotos(u.secoes)}
-            </td>
-          </tr>
-        ))}
-    </tbody>
+          <thead>
+            <tr>
+              <th>{porRegioes ? 'Região' : 'Estado'}</th>
+              <th>Apurado</th>
+              <th>Seções</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(porRegioes
+              ? regioes.map((r) => ({ ...r, rotulo: r.nome }))
+              : ufs
+                  .filter((u) => u.uf !== 'br')
+                  .map((u) => ({ ...u, rotulo: u.uf === 'zz' ? 'Exterior' : nomeUf(u.uf) }))
+            )
+              .sort((a, b) => b.apurado - a.apurado)
+              .map((u) => (
+                <tr key={u.uf}>
+                  <td>{u.rotulo}</td>
+                  <td>{fmtPct(u.apurado)}</td>
+                  <td>
+                    {fmtVotos(u.secoesTotalizadas)} / {fmtVotos(u.secoes)}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
         </table>
       </details>
       <p className="credito">Mapa: svg-maps/brazil, Victor Cazanave (CC BY 4.0)</p>
     </section>
   )
-  }
+}

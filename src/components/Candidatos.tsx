@@ -10,6 +10,8 @@ interface Props {
   decideAqui: boolean
   /** Endereço da foto do candidato, ou null quando não há foto (demonstração). */
   foto: (c: Candidato) => string | null
+  /** No 2º turno: o resultado do 1º turno no mesmo lugar, para comparar. */
+  anterior?: Resultado
 }
 
 const POR_PAGINA = 30
@@ -20,8 +22,12 @@ const SELO: Record<Exclude<Situacao, null>, string> = {
   segundoTurno: '2º turno',
 }
 
-export function Candidatos({ resultado, cargo, turno, decideAqui, foto }: Props) {
+export function Candidatos({ resultado, cargo, turno, decideAqui, foto, anterior }: Props) {
   const { candidatos } = resultado
+  const noPrimeiro = useMemo(
+    () => new Map((anterior?.candidatos ?? []).map((c) => [c.sq || c.numero, c])),
+    [anterior],
+  )
   const [busca, setBusca] = useState('')
   const [soEleitos, setSoEleitos] = useState(false)
   const [limite, setLimite] = useState(POR_PAGINA)
@@ -141,6 +147,11 @@ export function Candidatos({ resultado, cargo, turno, decideAqui, foto }: Props)
                   </span>
                   <span>{fmtVotos(c.votos)} votos</span>
                 </div>
+                {noPrimeiro.get(c.sq || c.numero) && (
+                  <div className="pequeno cand-antes">
+                    1º turno: {fmtPct(noPrimeiro.get(c.sq || c.numero)!.pct)}
+                  </div>
+                )}
                 <div className="barra-cand" aria-hidden>
                   <div style={{ width: `${(c.pct / maior) * 100}%` }} />
                 </div>

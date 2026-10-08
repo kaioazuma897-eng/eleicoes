@@ -180,7 +180,9 @@ function coletarCandidatos(node: unknown, ctx: Contexto, out: Candidato[], grupo
       coligacao: str(node.cc) || ctx.coligacao,
       votos: num(node.vap),
       pct: num(node.pvap),
-      eleito: str(node.e).toLowerCase() === 's' || /^eleit/i.test(situacao),
+      // A situação escrita manda: no resultado final o TSE marca e="s" também em quem vai ao
+      // 2º turno. Sem situação escrita, vale o indicador e="s".
+      eleito: situacao ? /^eleit/i.test(situacao) : str(node.e).toLowerCase() === 's',
       situacao,
       vice: viceDe(node),
       grupo: ctx.grupo,
@@ -344,6 +346,10 @@ export interface Eleicao {
   data: string
   /** Pasta do ciclo eleitoral nos arquivos do TSE, ex.: "ele2026". */
   ciclo: string
+  /** Código reservado para o 2º turno desta eleição (o TSE informa antes de listá-lo). */
+  codigo2t: string
+  /** Estados onde há disputa (só listados quando não é o Brasil todo, como no 2º turno). */
+  ufs: string[]
 }
 
 /** Eleições listadas no arquivo de configuração do TSE (de todos os anos que ele trouxer). */
@@ -363,6 +369,11 @@ export function lerConfig(raw: unknown): { ciclo: string; eleicoes: Eleicao[] } 
           turno: num(e.t) || 1,
           data: str(e.dt) || str(node.dt),
           ciclo,
+          codigo2t: str(e.cdt2),
+          ufs: (Array.isArray(e.abr) ? e.abr : [])
+            .filter(isObj)
+            .map((a) => str(a.cd).toLowerCase())
+            .filter((uf) => uf && uf !== 'br'),
         })
       }
     }
@@ -380,14 +391,29 @@ export interface Turno {
   federal: string
   /** Código da eleição de governador, senador e deputados. */
   estadual: string
+  /** Estados com disputa de governador neste turno (vazio = todos). */
+  ufsEstadual: string[]
+  /** O TSE ainda não listou este turno: só reservou os códigos. */
+  previsto?: boolean
+}
+
+/**
+ * 2º turno: sempre no último domingo de outubro (Constituição, art. 77). Usado enquanto o TSE
+ * ainda não lista o 2º turno no arquivo de configuração.
+ */
+export function dataSegundoTurno(ano: number): string {
+  const d = new Date(Date.UTC(ano, 9, 31))
+  d.setUTCDate(31 - d.getUTCDay())
+  return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
 }
 
 /**
  * Nas eleições gerais o TSE separa a eleição federal (presidente) da estadual (os demais cargos),
- * cada uma com seu código, em cada turno. Ex.: 2022 teve 544/546 no 1º turno e 545/547 no 2º.
+ * cada uma com seu código, em cada turno. Ex.: 2026 tem 6257/6259 no 1º turno e 6258/6260 no 2º.
+ * Antes de listar o 2º turno o TSE já informa os códigos dele (cdt2): o turno entra como previsto.
  */
 export function montarTurnos(eleicoes: Eleicao[]): Turno[] {
-  const ordinarias = eleicoes.filter((e) => !/suplementar|nova elei/i.test(e.nome))
+  const ordinarias = eleicoes.filter((e) => !/suplementar|nova elei|municipal/i.test(e.nome))
   const porTurno = new Map<number, Eleicao[]>()
   for (const e of ordinarias) porTurno.set(e.turno, [...(porTurno.get(e.turno) ?? []), e])
 
@@ -396,7 +422,28 @@ export function montarTurnos(eleicoes: Eleicao[]): Turno[] {
     lista.sort((a, b) => Number(a.codigo) - Number(b.codigo))
     const federal = lista.find((e) => /federal/i.test(e.nome)) ?? lista[0]
     const estadual = lista.find((e) => /estadua/i.test(e.nome)) ?? lista.find((e) => e !== federal) ?? federal
-    turnos.push({ turno, data: federal.data, federal: federal.codigo, estadual: estadual.codigo })
+    turnos.push({
+      turno,
+      data: federal.data,
+      federal: federal.codigo,
+      estadual: estadual.codigo,
+      ufsEstadual: estadual.ufs,
+    })
+  }
+
+  const primeiro = turnos.find((t) => t.turno === 1)
+  const fed1 = ordinarias.find((e) => e.codigo === primeiro?.federal)
+  const est1 = ordinarias.find((e) => e.codigo === primeiro?.estadual)
+  if (primeiro && !porTurno.has(2) && fed1?.codigo2t) {
+    const ano = Number(primeiro.data.slice(-4)) || new Date().getFullYear()
+    turnos.push({
+      turno: 2,
+      data: dataSegundoTurno(ano),
+      federal: fed1.codigo2t,
+      estadual: est1?.codigo2t || fed1.codigo2t,
+      ufsEstadual: [],
+      previsto: true,
+    })
   }
   return turnos.sort((a, b) => a.turno - b.turno)
 }
