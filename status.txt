@@ -1,0 +1,9 @@
+200 comum/config/ele-c.json
+200 ele2026/6258/dados/br/br-c0001-e006258-u.json
+200 ele2026/6258/dados/br/br-e006258-ab.json
+200 ele2026/6258/config/mun-e006258-cm.json
+404 ele2026/6260/dados/rj/rj-c0003-e006260-u.json
+200 ele2026/6260/dados/br/br-e006260-ab.json
+200 ele2026/6260/config/mun-e006260-cm.json
+200 ele2026/6258/dados/sp/sp71072-c0001-e006258-u.json
+404 ele2026/6260/dados/sp/sp-c0003-e006260-u.json
