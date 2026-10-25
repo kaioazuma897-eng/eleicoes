@@ -5,9 +5,18 @@ import { Local } from './components/Local'
 import { Mapa } from './components/Mapa'
 import { Placar } from './components/Placar'
 import { AntesDoSegundoTurno, passou } from './components/SegundoTurno'
+import { VotosRegiao } from './components/VotosRegiao'
 import { CARGOS, cargoExiste, cargoPorId, UFS, urlFoto, type CargoId, type Turno } from './core/tse'
 import { gravar, ler } from './lib/storage'
-import { AJUSTES_PADRAO, useAndamento, useMunicipios, useResultado, useTurnos, type Ajustes } from './lib/useApuracao'
+import {
+  AJUSTES_PADRAO,
+  useAndamento,
+  useMunicipios,
+  useResultado,
+  useTurnos,
+  useVotosPorRegiao,
+  type Ajustes,
+} from './lib/useApuracao'
 
 interface Escolha {
   turno: number
@@ -51,6 +60,9 @@ export default function App() {
   // A lista de municípios do 2º turno só sai perto da eleição; a do 1º turno serve
   const municipios = useMunicipios(ajustes, turno1?.federal ?? turno?.federal)
   const andamento = useAndamento(ajustes, eleicao)
+  // Votos por região: só para presidente no Brasil (soma os 27 estados)
+  const verRegioes = cargo.nacional && escolha.uf === 'br'
+  const porRegiao = useVotosPorRegiao(ajustes, verRegioes ? eleicao : undefined, cargo, turno?.turno ?? 1)
   const apuracao = useResultado(ajustes, eleicao, {
     turno: turno?.turno ?? 1,
     cargo,
@@ -216,6 +228,14 @@ export default function App() {
             ) : (
               <p className="vazio card pequeno">
                 {andamento.erro ? `Mapa por estado indisponível: ${andamento.erro}` : 'Carregando mapa por estado…'}
+              </p>
+            ))}
+          {verRegioes &&
+            (porRegiao.regioes ? (
+              <VotosRegiao regioes={porRegiao.regioes} />
+            ) : (
+              <p className="vazio card pequeno">
+                {porRegiao.erro ? `Votos por região indisponíveis: ${porRegiao.erro}` : 'Somando os votos por região…'}
               </p>
             ))}
           <Candidatos

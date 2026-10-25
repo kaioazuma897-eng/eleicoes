@@ -353,3 +353,30 @@ describe('arquivos reais do 2º turno (25/10/2026)', () => {
     expect(r.candidatos.map((c) => sit.get(c))).toEqual(['elegendo', null])
   })
 })
+
+describe('votos por região', () => {
+  const res = (secoes: number, st: number, cand: [string, string, number][]) =>
+    lerResultado({
+      s: { ts: String(secoes), st: String(st), pst: '0' },
+      v: { vv: String(cand.reduce((t, c) => t + c[2], 0)) },
+      cand: cand.map(([sq, nm, v]) => ({ sqcand: sq, n: sq, nm, vap: String(v) })),
+    })
+
+  it('soma os votos de cada candidato nos estados da região', async () => {
+    const { votosPorRegiao } = await import('./tse')
+    const porUf = new Map([
+      ['pr', res(100, 100, [['1', 'A', 60], ['2', 'B', 40]])],
+      ['rs', res(300, 0, [['1', 'A', 100], ['2', 'B', 300]])],
+      ['sp', res(10, 10, [['1', 'A', 5]])],
+    ])
+    const sul = votosPorRegiao(porUf).find((r) => r.id === 'sul')!
+    expect(sul.ufsComDados).toBe(2)
+    expect(sul.validos).toBe(500)
+    expect(sul.apurado).toBe(25)
+    expect(sul.candidatos.map((c) => [c.nome, c.votos])).toEqual([['B', 340], ['A', 160]])
+    expect(sul.candidatos[0].pct).toBeCloseTo(68)
+    const norte = votosPorRegiao(porUf).find((r) => r.id === 'norte')!
+    expect(norte.ufsComDados).toBe(0)
+    expect(norte.candidatos).toEqual([])
+  })
+})

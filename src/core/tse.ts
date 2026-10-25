@@ -503,3 +503,65 @@ export function andamentoPorRegiao(ufs: AndamentoUf[]): (AndamentoUf & { nome: s
     return { uf: r.id, nome: r.nome, secoes, secoesTotalizadas, apurado: secoes ? (secoesTotalizadas / secoes) * 100 : 0 }
   })
 }
+
+// ---------- votos por região ----------
+
+export interface CandidatoRegiao {
+  /** Chave do candidato: número de urna (o mesmo em todos os estados). */
+  id: string
+  nome: string
+  numero: string
+  partido: string
+  votos: number
+  /** % dos votos válidos da região. */
+  pct: number
+}
+
+export interface VotosRegiao {
+  id: string
+  nome: string
+  /** Estados da região que já têm resultado publicado. */
+  ufsComDados: number
+  apurado: number
+  secoes: number
+  secoesTotalizadas: number
+  validos: number
+  candidatos: CandidatoRegiao[]
+}
+
+/**
+ * O TSE não publica resultado por região: somamos os votos de cada candidato nos estados da
+ * região (os resultados de cada estado do mesmo cargo). Só faz sentido para presidente, o único
+ * cargo com os mesmos candidatos no país todo.
+ */
+export function votosPorRegiao(porUf: Map<string, Resultado>): VotosRegiao[] {
+  return REGIOES.map((r) => {
+    const dela = r.ufs.map((uf) => porUf.get(uf)).filter((x): x is Resultado => !!x)
+    const somas = new Map<string, CandidatoRegiao>()
+    for (const res of dela) {
+      for (const c of res.candidatos) {
+        const id = c.numero || c.sq
+        const atual = somas.get(id) ?? { id, nome: c.nome, numero: c.numero, partido: c.partido, votos: 0, pct: 0 }
+        atual.votos += c.votos
+        somas.set(id, atual)
+      }
+    }
+    const somaCand = [...somas.values()].reduce((t, c) => t + c.votos, 0)
+    const validos = dela.reduce((t, x) => t + x.validos, 0) || somaCand
+    const candidatos = [...somas.values()]
+      .map((c) => ({ ...c, pct: validos ? (c.votos / validos) * 100 : 0 }))
+      .sort((a, b) => b.votos - a.votos || a.nome.localeCompare(b.nome))
+    const secoes = dela.reduce((t, x) => t + x.secoes, 0)
+    const secoesTotalizadas = dela.reduce((t, x) => t + x.secoesTotalizadas, 0)
+    return {
+      id: r.id,
+      nome: r.nome,
+      ufsComDados: dela.length,
+      apurado: secoes ? (secoesTotalizadas / secoes) * 100 : 0,
+      secoes,
+      secoesTotalizadas,
+      validos,
+      candidatos,
+    }
+  })
+}

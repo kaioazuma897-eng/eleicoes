@@ -853,6 +853,73 @@ select {
   pointer-events: none;
 }
 
+/* ---------- votos por região ---------- */
+
+.votos-regiao {
+  padding: 16px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.votos-regiao h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.votos-regiao > p {
+  margin: -8px 0 0;
+  color: var(--ink-2);
+}
+
+.regiao-bloco {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.regiao-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.regiao-cands {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.regiao-linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.regiao-nome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.regiao-pct,
+.lider .regiao-nome {
+  font-weight: 700;
+}
+
+.regiao-outros {
+  color: var(--ink-3);
+}
+
 /* ---------- vagas e quem está se elegendo ---------- */
 
 .vagas {

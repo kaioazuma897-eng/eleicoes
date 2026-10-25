@@ -11,11 +11,14 @@ import {
   urlConfig,
   urlMunicipios,
   urlResultado,
+  UFS,
+  votosPorRegiao,
   type AndamentoUf,
   type Cargo,
   type Municipio,
   type Resultado,
   type Turno,
+  type VotosRegiao,
 } from '../core/tse'
 import { buscarJson, ErroTse } from './api'
 
@@ -221,4 +224,52 @@ export function useAndamento(ajustes: Ajustes, eleicao: string | undefined) {
   }, [ajustes, eleicao])
 
   return { dados, erro }
+}
+
+/**
+ * Votos somados por região: baixa o resultado do cargo em cada um dos 27 estados e soma.
+ * Atualiza a cada minuto enquanto o app está visível; estados que falharem ficam de fora
+ * até a próxima rodada.
+ */
+export function useVotosPorRegiao(ajustes: Ajustes, eleicao: string | undefined, cargo: Cargo, turno: number) {
+  const [regioes, setRegioes] = useState<VotosRegiao[] | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  useEffect(() => {
+    setRegioes(null)
+    setErro(null)
+    if (!eleicao) return
+    let vivo = true
+    const carregar = async () => {
+      if (document.hidden) return
+      const lidos = await Promise.allSettled(
+        UFS.map(async (u) => {
+          const raw =
+            ajustes.modo === 'demo'
+              ? resultadoDemo(cargo, u.sigla, undefined, Date.now(), turno)
+              : await buscarJson(urlResultado(ajustes, eleicao, cargo, u.sigla))
+          return [u.sigla, lerResultado(raw)] as const
+        }),
+      )
+      if (!vivo) return
+      const ok = lidos.flatMap((l) => (l.status === 'fulfilled' ? [l.value] : []))
+      if (!ok.length) {
+        const motivo = lidos.find((l) => l.status === 'rejected')?.reason
+        setErro(motivo instanceof Error ? motivo.message : 'Nenhum estado respondeu.')
+        return
+      }
+      setRegioes(votosPorRegiao(new Map(ok)))
+      setErro(null)
+    }
+    void carregar()
+    const t = setInterval(carregar, INTERVALO_S * 1000)
+    document.addEventListener('visibilitychange', carregar)
+    return () => {
+      vivo = false
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', carregar)
+    }
+  }, [ajustes, eleicao, cargo, turno])
+
+  return { regioes, erro }
 }
