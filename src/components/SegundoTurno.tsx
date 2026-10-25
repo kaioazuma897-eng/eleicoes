@@ -13,24 +13,43 @@ interface Props {
   decideAqui: boolean
   foto: (c: Candidato) => string | null
   onVerPrimeiro: () => void
+  /** O TSE publicou a lista de estados do 2º turno e este não está nela. */
+  semDisputa?: boolean
 }
 
 /** Antes de o TSE publicar a apuração do 2º turno: quem disputa e como foi no 1º turno. */
-export function AntesDoSegundoTurno({ cargo, nomeLugar, data, primeiro, decideAqui, foto, onVerPrimeiro }: Props) {
-  const finalistas = primeiro?.candidatos.filter((c) => /2.?\s*turno/i.test(c.situacao)) ?? []
+export function AntesDoSegundoTurno({
+  cargo,
+  nomeLugar,
+  data,
+  primeiro,
+  decideAqui,
+  foto,
+  onVerPrimeiro,
+  semDisputa = false,
+}: Props) {
+  // A lista oficial do TSE manda: se o estado não está nela, não há 2º turno, mesmo que o
+  // resultado do 1º turno tenha marcado candidatos com "2º turno"
+  const finalistas = semDisputa ? [] : (primeiro?.candidatos.filter((c) => /2.?\s*turno/i.test(c.situacao)) ?? [])
   const eleito = primeiro?.candidatos.find((c) => c.eleito)
   const jaComecou = passou(data)
 
   return (
     <section className="segundo-turno card" aria-label="2º turno">
       <div className="rotulo">2º turno · {data}</div>
-      {primeiro && !finalistas.length && eleito ? (
+      {semDisputa || (primeiro && !finalistas.length && eleito) ? (
         <>
           <h3>Não há 2º turno para {cargo.nome.toLowerCase()} aqui</h3>
-          <p>
-            <strong>{eleito.nome}</strong> foi eleito no 1º turno em {nomeLugar}, com {fmtPct(eleito.pct)} dos votos
-            válidos.
-          </p>
+          {eleito ? (
+            <p>
+              <strong>{eleito.nome}</strong> foi eleito no 1º turno em {nomeLugar}, com {fmtPct(eleito.pct)} dos votos
+              válidos.
+            </p>
+          ) : (
+            <p>
+              {nomeLugar} não está entre os estados com 2º turno para {cargo.nome.toLowerCase()} divulgados pelo TSE.
+            </p>
+          )}
         </>
       ) : (
         <>

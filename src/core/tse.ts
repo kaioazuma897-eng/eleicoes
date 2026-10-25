@@ -413,7 +413,7 @@ export function dataSegundoTurno(ano: number): string {
  * Antes de listar o 2º turno o TSE já informa os códigos dele (cdt2): o turno entra como previsto.
  */
 export function montarTurnos(eleicoes: Eleicao[]): Turno[] {
-  const ordinarias = eleicoes.filter((e) => !/suplementar|nova elei|municipal/i.test(e.nome))
+  const ordinarias = eleicoes.filter((e) => !/suplementar|nova elei|municipal|consulta/i.test(e.nome))
   const porTurno = new Map<number, Eleicao[]>()
   for (const e of ordinarias) porTurno.set(e.turno, [...(porTurno.get(e.turno) ?? []), e])
 

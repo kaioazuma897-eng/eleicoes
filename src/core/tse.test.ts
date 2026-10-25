@@ -329,3 +329,27 @@ describe('2º turno', () => {
     expect(r.candidatos.slice(0, 3).map((c) => sit.get(c))).toEqual(['segundoTurno', 'segundoTurno', null])
   })
 })
+
+describe('arquivos reais do 2º turno (25/10/2026)', () => {
+  it('lista o 2º turno com os 6 estados de governador do TSE (sem o RJ)', async () => {
+    const raw = (await import('./fixtures/ele-c-2026-10-25.json')).default
+    const t = montarTurnos(lerConfig(raw).eleicoes.filter((e) => e.ciclo === 'ele2026'))
+    expect(t.map((x) => [x.turno, x.data, x.federal, x.estadual])).toEqual([
+      [1, '04/10/2026', '6257', '6259'],
+      [2, '25/10/2026', '6258', '6260'],
+    ])
+    expect(t[1].previsto).toBeUndefined()
+    expect([...t[1].ufsEstadual].sort()).toEqual(['ac', 'am', 'df', 'es', 'rn', 'to'])
+  })
+
+  it('lê a apuração de presidente do 2º turno', async () => {
+    const { projetarSituacao } = await import('./tse')
+    const r = lerResultado((await import('./fixtures/br-c0001-e006258-u.json')).default)
+    expect(r.vagas).toBe(1)
+    expect(r.candidatos.map((c) => c.nome)).toEqual(['LULA', 'FLAVIO BOLSONARO'])
+    expect(r.candidatos[0].pct).toBeCloseTo(57.66)
+    // No 2º turno não há maioria absoluta a exigir: o líder aparece se elegendo
+    const sit = projetarSituacao(r, cargoPorId('presidente'), true, 2)
+    expect(r.candidatos.map((c) => sit.get(c))).toEqual(['elegendo', null])
+  })
+})

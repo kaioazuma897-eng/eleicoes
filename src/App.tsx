@@ -178,6 +178,9 @@ export default function App() {
             demo || !c.sq || !eleicao1 ? null : urlFoto(ajustes, eleicao1, cargo.nacional ? 'br' : escolha.uf, c.sq)
           }
           onVerPrimeiro={() => setEscolha((e) => ({ ...e, turno: 1 }))}
+          semDisputa={
+            !cargo.nacional && turno.ufsEstadual.length > 0 && !turno.ufsEstadual.includes(escolha.uf)
+          }
         />
       )}
 
