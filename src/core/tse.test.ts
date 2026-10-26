@@ -380,3 +380,20 @@ describe('votos por região', () => {
     expect(norte.candidatos).toEqual([])
   })
 })
+
+describe('crescimento do 1º para o 2º turno (arquivos reais de SP)', () => {
+  it('compara os finalistas pelo número de urna', async () => {
+    const { compararTurnos } = await import('./tse')
+    const sp1 = lerResultado((await import('./fixtures/sp-c0001-e006257-u.json')).default)
+    const sp2 = lerResultado((await import('./fixtures/sp-c0001-e006258-u.json')).default)
+    const { finalistas, linhas } = compararTurnos(sp2, sp1, new Map([['sp', sp2]]), new Map([['sp', sp1]]))
+    expect(finalistas.map((f) => f.numero)).toEqual(['22', '13'])
+    expect(linhas.map((l) => l.uf)).toEqual(['br', 'sp'])
+    const flavio = linhas[1].cands[0]
+    expect(flavio.votos2).toBe(14139178)
+    expect(flavio.pct2).toBeCloseTo(53.85)
+    expect(flavio.pct1).toBeGreaterThan(0)
+    expect(flavio.pct1).toBeLessThan(flavio.pct2)
+    expect(flavio.votos1).toBeGreaterThan(0)
+  })
+})

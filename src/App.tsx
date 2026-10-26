@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react'
 import { AjustesPainel } from './components/AjustesPainel'
 import { Candidatos } from './components/Candidatos'
+import { CrescimentoTurnos } from './components/CrescimentoTurnos'
 import { Local } from './components/Local'
 import { Mapa } from './components/Mapa'
 import { Placar } from './components/Placar'
 import { AntesDoSegundoTurno, passou } from './components/SegundoTurno'
 import { VotosRegiao } from './components/VotosRegiao'
-import { CARGOS, cargoExiste, cargoPorId, UFS, urlFoto, type CargoId, type Turno } from './core/tse'
+import {
+  CARGOS,
+  cargoExiste,
+  cargoPorId,
+  compararTurnos,
+  UFS,
+  urlFoto,
+  votosPorRegiao,
+  type CargoId,
+  type Turno,
+} from './core/tse'
 import { gravar, ler } from './lib/storage'
 import {
   AJUSTES_PADRAO,
@@ -14,7 +25,7 @@ import {
   useMunicipios,
   useResultado,
   useTurnos,
-  useVotosPorRegiao,
+  useResultadosUfs,
   type Ajustes,
 } from './lib/useApuracao'
 
@@ -62,13 +73,20 @@ export default function App() {
   const andamento = useAndamento(ajustes, eleicao)
   // Votos por região: só para presidente no Brasil (soma os 27 estados)
   const verRegioes = cargo.nacional && escolha.uf === 'br'
-  const porRegiao = useVotosPorRegiao(ajustes, verRegioes ? eleicao : undefined, cargo, turno?.turno ?? 1)
+  const ufs = useResultadosUfs(ajustes, verRegioes ? eleicao : undefined, cargo, turno?.turno ?? 1)
+  const porRegiao = { regioes: ufs.porUf && votosPorRegiao(ufs.porUf), erro: ufs.erro }
+  // No 2º turno: os mesmos estados no 1º turno, para ver quanto cada finalista cresceu
+  const ufs1 = useResultadosUfs(ajustes, verRegioes && noSegundo ? eleicao1 : undefined, cargo, 1)
   const apuracao = useResultado(ajustes, eleicao, {
     turno: turno?.turno ?? 1,
     cargo,
     uf: escolha.uf,
     municipio: escolha.municipio,
   })
+  const comparacao =
+    verRegioes && noSegundo && apuracao.resultado && ufs.porUf && ufs1.porUf
+      ? compararTurnos(apuracao.resultado, primeiro.resultado, ufs.porUf, ufs1.porUf)
+      : null
 
   const cargosVisiveis = CARGOS.filter(
     (c) =>
@@ -238,6 +256,7 @@ export default function App() {
                 {porRegiao.erro ? `Votos por região indisponíveis: ${porRegiao.erro}` : 'Somando os votos por região…'}
               </p>
             ))}
+          {comparacao && comparacao.finalistas.length === 2 && <CrescimentoTurnos {...comparacao} />}
           <Candidatos
             resultado={apuracao.resultado}
             cargo={cargo}

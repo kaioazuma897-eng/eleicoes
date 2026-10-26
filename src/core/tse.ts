@@ -565,3 +565,58 @@ export function votosPorRegiao(porUf: Map<string, Resultado>): VotosRegiao[] {
     }
   })
 }
+
+// ---------- crescimento do 1º para o 2º turno ----------
+
+export interface Finalista {
+  numero: string
+  nome: string
+  partido: string
+}
+
+export interface ComparacaoCandidato {
+  /** % dos votos válidos em cada turno (0 quando o candidato não aparece no arquivo). */
+  pct1: number
+  pct2: number
+  votos1: number
+  votos2: number
+}
+
+export interface LinhaComparacao {
+  /** Sigla do estado, "zz" (exterior) ou "br" (Brasil). */
+  uf: string
+  nome: string
+  /** Na ordem dos finalistas. */
+  cands: ComparacaoCandidato[]
+}
+
+/**
+ * Compara os dois finalistas do 2º turno com o desempenho deles no 1º turno, no Brasil e em
+ * cada estado. O candidato é o mesmo nos dois turnos pelo número de urna.
+ */
+export function compararTurnos(
+  brasil2: Resultado,
+  brasil1: Resultado | null,
+  porUf2: Map<string, Resultado>,
+  porUf1: Map<string, Resultado>,
+): { finalistas: Finalista[]; linhas: LinhaComparacao[] } {
+  const finalistas = brasil2.candidatos
+    .slice(0, 2)
+    .map((c) => ({ numero: c.numero, nome: c.nome, partido: c.partido }))
+  const achar = (r: Resultado | null | undefined, numero: string) => r?.candidatos.find((c) => c.numero === numero)
+  const linha = (uf: string, nome: string, r2: Resultado | undefined, r1: Resultado | null | undefined) => ({
+    uf,
+    nome,
+    cands: finalistas.map((f) => {
+      const c2 = achar(r2, f.numero)
+      const c1 = achar(r1, f.numero)
+      return { pct1: c1?.pct ?? 0, pct2: c2?.pct ?? 0, votos1: c1?.votos ?? 0, votos2: c2?.votos ?? 0 }
+    }),
+  })
+  const lugares = [...UFS.map((u) => [u.sigla, u.nome] as const), ['zz', 'Exterior'] as const]
+  const linhas = [
+    linha('br', 'Brasil', brasil2, brasil1),
+    ...lugares.filter(([uf]) => porUf2.has(uf)).map(([uf, nome]) => linha(uf, nome, porUf2.get(uf), porUf1.get(uf))),
+  ]
+  return { finalistas, linhas }
+}

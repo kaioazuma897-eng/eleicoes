@@ -920,6 +920,122 @@ select {
   color: var(--ink-3);
 }
 
+/* ---------- do 1º para o 2º turno ---------- */
+
+.crescimento {
+  padding: 16px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crescimento h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.crescimento > p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.crescimento > p:first-of-type {
+  margin-top: -6px;
+}
+
+.cresc-resumo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cresc-cand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.cresc-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cresc-pcts {
+  font-size: 15px;
+}
+
+.cresc-melhores {
+  color: var(--ink-3);
+}
+
+.variacao {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.variacao.sobe {
+  color: var(--ok);
+}
+
+.variacao.desce {
+  color: var(--err-ink);
+}
+
+.cresc-ordem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cresc-ordem select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.cresc-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cresc-tabela th,
+.cresc-tabela td {
+  text-align: left;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.cresc-tabela th:not(:first-child),
+.cresc-tabela td:not(:first-child) {
+  text-align: right;
+}
+
+.cresc-tabela td.venceu > div {
+  font-weight: 700;
+}
+
+.cresc-antes {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
 /* ---------- vagas e quem está se elegendo ---------- */
 
 .vagas {

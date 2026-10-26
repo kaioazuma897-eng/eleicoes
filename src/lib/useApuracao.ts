@@ -12,13 +12,11 @@ import {
   urlMunicipios,
   urlResultado,
   UFS,
-  votosPorRegiao,
   type AndamentoUf,
   type Cargo,
   type Municipio,
   type Resultado,
   type Turno,
-  type VotosRegiao,
 } from '../core/tse'
 import { buscarJson, ErroTse } from './api'
 
@@ -227,42 +225,55 @@ export function useAndamento(ajustes: Ajustes, eleicao: string | undefined) {
 }
 
 /**
- * Votos somados por região: baixa o resultado do cargo em cada um dos 27 estados e soma.
- * Atualiza a cada minuto enquanto o app está visível; estados que falharem ficam de fora
- * até a próxima rodada.
+ * Resultado do cargo em cada estado (e no exterior), para somar por região e comparar turnos.
+ * Atualiza a cada minuto enquanto o app está visível e para quando todos estão totalizados;
+ * estados que falharem ficam de fora até a próxima rodada.
  */
-export function useVotosPorRegiao(ajustes: Ajustes, eleicao: string | undefined, cargo: Cargo, turno: number) {
-  const [regioes, setRegioes] = useState<VotosRegiao[] | null>(null)
+export function useResultadosUfs(ajustes: Ajustes, eleicao: string | undefined, cargo: Cargo, turno: number) {
+  const [porUf, setPorUf] = useState<Map<string, Resultado> | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
-    setRegioes(null)
+    setPorUf(null)
     setErro(null)
     if (!eleicao) return
     let vivo = true
+    let t: ReturnType<typeof setInterval> | undefined
+    /** Estados já lidos; os totalizados não são baixados de novo. */
+    const lidos = new Map<string, Resultado>()
+    const lugares = [...UFS.map((u) => u.sigla), 'zz']
     const carregar = async () => {
       if (document.hidden) return
-      const lidos = await Promise.allSettled(
-        UFS.map(async (u) => {
+      const faltam = lugares.filter((uf) => !lidos.get(uf)?.finalizado)
+      const falhas: unknown[] = []
+      // Poucos pedidos de cada vez: o TSE recusa rajadas (erro 429)
+      await emLotes(faltam, 6, async (uf) => {
+        try {
           const raw =
             ajustes.modo === 'demo'
-              ? resultadoDemo(cargo, u.sigla, undefined, Date.now(), turno)
-              : await buscarJson(urlResultado(ajustes, eleicao, cargo, u.sigla))
-          return [u.sigla, lerResultado(raw)] as const
-        }),
-      )
+              ? resultadoDemo(cargo, uf, undefined, Date.now(), turno)
+              : await buscarJson(urlResultado(ajustes, eleicao, cargo, uf))
+          lidos.set(uf, lerResultado(raw))
+        } catch (e) {
+          falhas.push(e)
+        }
+      })
       if (!vivo) return
-      const ok = lidos.flatMap((l) => (l.status === 'fulfilled' ? [l.value] : []))
-      if (!ok.length) {
-        const motivo = lidos.find((l) => l.status === 'rejected')?.reason
+      if (!lidos.size) {
+        const motivo = falhas[0]
         setErro(motivo instanceof Error ? motivo.message : 'Nenhum estado respondeu.')
         return
       }
-      setRegioes(votosPorRegiao(new Map(ok)))
+      setPorUf(new Map(lidos))
       setErro(null)
+      // Tudo totalizado: não há mais o que atualizar
+      if (lugares.every((uf) => lidos.get(uf)?.finalizado)) {
+        clearInterval(t)
+        document.removeEventListener('visibilitychange', carregar)
+      }
     }
     void carregar()
-    const t = setInterval(carregar, INTERVALO_S * 1000)
+    t = setInterval(carregar, INTERVALO_S * 1000)
     document.addEventListener('visibilitychange', carregar)
     return () => {
       vivo = false
@@ -271,5 +282,14 @@ export function useVotosPorRegiao(ajustes: Ajustes, eleicao: string | undefined,
     }
   }, [ajustes, eleicao, cargo, turno])
 
-  return { regioes, erro }
+  return { porUf, erro }
+}
+
+/** Roda `fn` em cada item, com no máximo `n` ao mesmo tempo. */
+async function emLotes<T>(itens: T[], n: number, fn: (item: T) => Promise<void>) {
+  let i = 0
+  const trabalhador = async () => {
+    while (i < itens.length) await fn(itens[i++])
+  }
+  await Promise.all(Array.from({ length: Math.min(n, itens.length) }, trabalhador))
 }
